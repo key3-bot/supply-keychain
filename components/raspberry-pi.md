@@ -3,8 +3,8 @@
 **Description:** Raspberry Pi 5 Model B, 8GB RAM for AI agent hardware.
 
 **Suppliers:**
-- CanaKit: $90 USD, link: https://www.canakit.com/raspberry-pi-5-8gb.html
-- Pimoroni: £75 GBP, link: https://shop.pimoroni.com/products/raspberry-pi-5-8gb
+- CanaKit: $90 USD, <a href="https://www.canakit.com/raspberry-pi-5-8gb.html">link</a>
+- Pimoroni: £75 GBP, <a href="https://shop.pimoroni.com/products/raspberry-pi-5">link</a>
 
 **Contacts:**
 - CanaKit: sales@canakit.com
