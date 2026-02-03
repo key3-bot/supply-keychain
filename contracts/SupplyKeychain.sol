@@ -1,0 +1,1 @@
+pragma solidity ^0.8.0; contract SupplyKeychain { mapping(uint => string) public components; event ComponentAdded(uint id, string ipfsHash); function addComponent(uint id, string memory ipfsHash) public { components[id] = ipfsHash; emit ComponentAdded(id, ipfsHash); } function getComponent(uint id) public view returns (string memory) { return components[id]; } }
