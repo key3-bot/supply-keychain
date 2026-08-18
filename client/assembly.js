@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+import { STLLoader } from "three/addons/loaders/STLLoader.js";
 
 const root = document.getElementById("cad-root");
 const hint = document.getElementById("cad-hint");
@@ -39,22 +40,23 @@ ground.rotation.x = -Math.PI / 2;
 ground.receiveShadow = true;
 scene.add(ground);
 
+function metal(color) {
+  return new THREE.MeshStandardMaterial({ color, roughness: 0.32, metalness: 0.72 });
+}
+
 const mats = {
   rail: metal(0x9aa7b5),
   cart: metal(0xd8dee8),
   alu: metal(0x7f8b99),
   alu2: metal(0xa3adb8),
   gold: metal(0xc9a227),
-  pcb: new THREE.MeshStandardMaterial({ color: 0x1f7a3a, roughness: 0.55, metalness: 0.1 }),
+  pcb: new THREE.MeshStandardMaterial({ color: 0x1f7a3a, roughness: 0.45, metalness: 0.12 }),
   pcb2: new THREE.MeshStandardMaterial({ color: 0x163024, roughness: 0.5, metalness: 0.08 }),
   plastic: new THREE.MeshStandardMaterial({ color: 0x2b2b2b, roughness: 0.4, metalness: 0.15 }),
 };
 
-function metal(color) {
-  return new THREE.MeshStandardMaterial({ color, roughness: 0.32, metalness: 0.72 });
-}
-
 const parts = [];
+const loader = new STLLoader();
 
 function addPart(id, mesh, home, explodeDir) {
   mesh.userData = { id, home: home.clone(), explodeDir: explodeDir.clone() };
@@ -66,64 +68,19 @@ function addPart(id, mesh, home, explodeDir) {
   return mesh;
 }
 
-function box(w, h, d, mat) {
-  return new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
+function loadStl(url, material) {
+  return new Promise((resolve, reject) => {
+    loader.load(
+      url,
+      (geom) => {
+        geom.computeVertexNormals();
+        resolve(new THREE.Mesh(geom, material));
+      },
+      undefined,
+      reject
+    );
+  });
 }
-
-function cyl(r, h, mat, seg = 32) {
-  return new THREE.Mesh(new THREE.CylinderGeometry(r, r, h, seg), mat);
-}
-
-const rail = box(400, 10, 22, mats.rail);
-addPart("frame", rail, new THREE.Vector3(0, 5, 0), new THREE.Vector3(0, -20, 0));
-
-const cart = box(80, 22, 52, mats.cart);
-addPart("frame", cart, new THREE.Vector3(0, 21, 0), new THREE.Vector3(0, 8, 0));
-
-const teensy = box(61, 4, 18, mats.pcb);
-addPart("teensy-4.1", teensy, new THREE.Vector3(16, 35, 0), new THREE.Vector3(40, 50, 20));
-
-const amt = cyl(14.5, 10, mats.plastic);
-amt.rotation.x = Math.PI / 2;
-addPart("amt102-v", amt, new THREE.Vector3(-28, 21, 32), new THREE.Vector3(-50, 10, 40));
-
-function slipRing() {
-  const g = new THREE.Group();
-  const body = cyl(6, 20, mats.gold);
-  g.add(body);
-  for (const y of [-6, 0, 6]) {
-    const ring = cyl(6.7, 1.2, mats.gold);
-    ring.position.y = y;
-    g.add(ring);
-  }
-  return g;
-}
-
-const slip1 = slipRing();
-addPart("slip-ring-12-wire", slip1, new THREE.Vector3(0, 42, 0), new THREE.Vector3(-30, 30, -40));
-
-const enc1 = box(20, 2, 20, mats.pcb2);
-addPart("as5047p", enc1, new THREE.Vector3(16, 42, 0), new THREE.Vector3(50, 40, -20));
-
-const link1 = box(16, 180, 8, mats.alu);
-addPart("frame", link1, new THREE.Vector3(0, 142, 0), new THREE.Vector3(0, 70, 0));
-
-const slip2 = slipRing();
-addPart("slip-ring-12-wire", slip2, new THREE.Vector3(0, 232, 0), new THREE.Vector3(30, 90, 30));
-
-const enc2 = box(20, 2, 20, mats.pcb2);
-addPart("as5047p", enc2, new THREE.Vector3(14, 232, 0), new THREE.Vector3(55, 100, 10));
-
-const link2 = box(12, 120, 6, mats.alu2);
-link2.rotation.z = THREE.MathUtils.degToRad(-22);
-addPart("frame", link2, new THREE.Vector3(22, 286, 0), new THREE.Vector3(20, 130, 0));
-
-const tip = cyl(7, 8, mats.gold, 24);
-addPart("frame", tip, new THREE.Vector3(44, 340, 0), new THREE.Vector3(30, 150, 0));
-
-let selected = "teensy-4.1";
-const raycaster = new THREE.Raycaster();
-const pointer = new THREE.Vector2();
 
 function setExplode(t) {
   parts.forEach((p) => {
@@ -132,7 +89,6 @@ function setExplode(t) {
 }
 
 function highlight(id) {
-  selected = id;
   parts.forEach((p) => {
     p.traverse((child) => {
       if (child.material && child.material.emissive) {
@@ -144,10 +100,10 @@ function highlight(id) {
   });
   if (hint) {
     const labels = {
-      "teensy-4.1": "Teensy 4.1 — cart brain",
-      "slip-ring-12-wire": "12-wire slip ring — joint wiring",
-      as5047p: "AS5047P — joint angle",
-      "amt102-v": "AMT102-V — cart travel",
+      "teensy-4.1": "Teensy 4.1 — vendor STEP",
+      "slip-ring-12-wire": "SRC012-12 slip ring — Ø12 × 19.5 mm",
+      as5047p: "AS5047P-TS_EK_AB — 28 × 22 mm",
+      "amt102-v": "AMT102-V — Ø31 × 28.77 mm",
       frame: "Rail / links — mechanical follow-on",
     };
     hint.textContent = labels[id] || "Drag to orbit · click a part";
@@ -156,8 +112,11 @@ function highlight(id) {
 
 function pick(event) {
   const rect = renderer.domElement.getBoundingClientRect();
-  pointer.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
-  pointer.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+  const pointer = new THREE.Vector2(
+    ((event.clientX - rect.left) / rect.width) * 2 - 1,
+    -((event.clientY - rect.top) / rect.height) * 2 + 1
+  );
+  const raycaster = new THREE.Raycaster();
   raycaster.setFromCamera(pointer, camera);
   const hits = raycaster.intersectObjects(parts, true);
   if (!hits.length) return;
@@ -177,6 +136,30 @@ function resize() {
   renderer.setSize(w, h);
 }
 
+async function build() {
+  const files = [
+    ["cad/rail.stl", "frame", mats.rail, new THREE.Vector3(0, 0, 0), new THREE.Vector3(0, -20, 0)],
+    ["cad/cart.stl", "frame", mats.cart, new THREE.Vector3(0, 0, 0), new THREE.Vector3(0, 8, 0)],
+    ["cad/link1.stl", "frame", mats.alu, new THREE.Vector3(0, 0, 0), new THREE.Vector3(0, 70, 0)],
+    ["cad/link2.stl", "frame", mats.alu2, new THREE.Vector3(0, 0, 0), new THREE.Vector3(20, 130, 0)],
+    ["cad/teensy-4.1.stl", "teensy-4.1", mats.pcb, new THREE.Vector3(0, 0, 0), new THREE.Vector3(40, 50, 20)],
+    ["cad/slip-ring-12-wire-a.stl", "slip-ring-12-wire", mats.gold, new THREE.Vector3(0, 0, 0), new THREE.Vector3(-30, 30, -40)],
+    ["cad/slip-ring-12-wire-b.stl", "slip-ring-12-wire", mats.gold, new THREE.Vector3(0, 0, 0), new THREE.Vector3(30, 90, 30)],
+    ["cad/as5047p-a.stl", "as5047p", mats.pcb2, new THREE.Vector3(0, 0, 0), new THREE.Vector3(50, 40, -20)],
+    ["cad/as5047p-b.stl", "as5047p", mats.pcb2, new THREE.Vector3(0, 0, 0), new THREE.Vector3(55, 100, 10)],
+    ["cad/amt102-v.stl", "amt102-v", mats.plastic, new THREE.Vector3(0, 0, 0), new THREE.Vector3(-50, 10, 40)],
+  ];
+
+  for (const [url, id, mat, home, explode] of files) {
+    const mesh = await loadStl(url, mat.clone());
+    // FreeCAD/STL is Z-up. Rotate into the existing Y-up viewer.
+    mesh.rotation.x = -Math.PI / 2;
+    addPart(id, mesh, home, explode);
+  }
+
+  highlight("teensy-4.1");
+}
+
 explodeInput.addEventListener("input", () => setExplode(Number(explodeInput.value)));
 resetBtn.addEventListener("click", () => {
   explodeInput.value = "0";
@@ -189,7 +172,11 @@ window.addEventListener("resize", resize);
 window.highlightCad = highlight;
 
 resize();
-highlight("teensy-4.1");
+if (hint) hint.textContent = "Loading FreeCAD meshes…";
+build().catch((err) => {
+  console.error(err);
+  if (hint) hint.textContent = "CAD mesh load failed";
+});
 
 function tick() {
   controls.update();

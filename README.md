@@ -10,7 +10,9 @@ Live page: http://5.161.216.162/demo/supply-keychain.html
 
 - Page: [`client/index.html`](client/index.html)
 - Interactive CAD: [`client/assembly.js`](client/assembly.js)
-- OpenSCAD source: [`cad/cart-double-pendulum.scad`](cad/cart-double-pendulum.scad)
+- FreeCAD assembly: [`cad/cart-double-pendulum.FCStd`](cad/cart-double-pendulum.FCStd)
+- Exported meshes: [`cad/exports/`](cad/exports/)
+- Sources: [`cad/ATTRIBUTION.md`](cad/ATTRIBUTION.md)
 - Machine-readable: [`catalog.json`](catalog.json)
 - Markdown keys: [`components/`](components/)
 
