@@ -10,15 +10,15 @@
   <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;800&family=Share+Tech+Mono&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet" />
   <style>
     :root {
-      --bg: #05070d;
-      --bg2: #0a1020;
-      --ink: #e8f6ff;
-      --muted: #8aa0b8;
-      --gold: #f5c518;
-      --cyan: #3ef0ff;
-      --mag: #ff3d9a;
-      --line: rgba(62, 240, 255, 0.18);
-      --card: rgba(10, 18, 36, 0.78);
+      --bg: #f3f6fb;
+      --bg2: #ffffff;
+      --ink: #122033;
+      --muted: #5b6b7c;
+      --gold: #c48a00;
+      --cyan: #0a8ea3;
+      --mag: #d31d73;
+      --line: rgba(18, 32, 51, 0.10);
+      --card: rgba(255, 255, 255, 0.86);
     }
     * { box-sizing: border-box; }
     html, body { margin: 0; padding: 0; background: var(--bg); color: var(--ink); }
@@ -30,9 +30,9 @@
     .grid {
       position: fixed; inset: 0; pointer-events: none; z-index: 0;
       background:
-        radial-gradient(900px 500px at 15% -10%, rgba(245, 197, 24, 0.12), transparent 55%),
-        radial-gradient(800px 480px at 90% 0%, rgba(62, 240, 255, 0.10), transparent 50%),
-        radial-gradient(700px 500px at 70% 110%, rgba(255, 61, 154, 0.08), transparent 50%),
+        radial-gradient(900px 500px at 15% -10%, rgba(196, 138, 0, 0.16), transparent 55%),
+        radial-gradient(800px 480px at 90% 0%, rgba(10, 142, 163, 0.12), transparent 50%),
+        radial-gradient(700px 500px at 70% 110%, rgba(211, 29, 115, 0.08), transparent 50%),
         linear-gradient(var(--line) 1px, transparent 1px),
         linear-gradient(90deg, var(--line) 1px, transparent 1px);
       background-size: auto, auto, auto, 48px 48px, 48px 48px;
@@ -43,23 +43,23 @@
       background: repeating-linear-gradient(
         to bottom,
         transparent 0 3px,
-        rgba(0, 0, 0, 0.08) 3px 4px
+        rgba(18, 32, 51, 0.025) 3px 4px
       );
-      opacity: 0.35;
+      opacity: 0.7;
     }
     .wrap { position: relative; z-index: 2; max-width: 1180px; margin: 0 auto; padding: 28px 22px 80px; }
     header {
       display: flex; justify-content: space-between; align-items: center; gap: 16px;
-      border: 1px solid var(--line); background: rgba(5, 8, 16, 0.7);
+      border: 1px solid var(--line); background: rgba(255, 255, 255, 0.82);
       backdrop-filter: blur(10px); padding: 14px 18px; border-radius: 16px;
     }
     .brand { display: flex; align-items: center; gap: 12px; }
     .mark {
       width: 38px; height: 38px; border-radius: 10px;
       display: grid; place-items: center;
-      background: linear-gradient(145deg, #2a2208, #0b1220);
-      border: 1px solid rgba(245, 197, 24, 0.55);
-      box-shadow: 0 0 18px rgba(245, 197, 24, 0.25);
+      background: linear-gradient(145deg, #fff6d6, #ffffff);
+      border: 1px solid rgba(196, 138, 0, 0.45);
+      box-shadow: 0 8px 18px rgba(196, 138, 0, 0.16);
       font-size: 20px;
     }
     .brand h1 {
@@ -70,10 +70,10 @@
     nav { display: flex; gap: 10px; flex-wrap: wrap; }
     nav a, .btn {
       color: var(--cyan); text-decoration: none; font-size: 12px; letter-spacing: 0.08em;
-      text-transform: uppercase; border: 1px solid rgba(62, 240, 255, 0.28);
-      padding: 8px 12px; border-radius: 999px; background: rgba(62, 240, 255, 0.05);
+      text-transform: uppercase; border: 1px solid rgba(10, 142, 163, 0.28);
+      padding: 8px 12px; border-radius: 999px; background: rgba(10, 142, 163, 0.06);
     }
-    nav a:hover, .btn:hover { background: rgba(62, 240, 255, 0.14); }
+    nav a:hover, .btn:hover { background: rgba(10, 142, 163, 0.14); }
     .hero { display: grid; grid-template-columns: 1.1fr 0.9fr; gap: 28px; margin: 36px 0 28px; align-items: center; }
     .kicker {
       font-family: Share Tech Mono, monospace; color: var(--cyan); letter-spacing: 0.22em;
@@ -83,8 +83,8 @@
       font-family: Orbitron, sans-serif; font-size: clamp(28px, 5vw, 52px);
       line-height: 1.05; margin: 0 0 14px; text-transform: uppercase;
     }
-    h2.display span { color: var(--gold); text-shadow: 0 0 24px rgba(245, 197, 24, 0.35); }
-    .lede { color: #c7d7e8; font-size: 17px; line-height: 1.55; max-width: 54ch; }
+    h2.display span { color: var(--gold); text-shadow: 0 8px 24px rgba(196, 138, 0, 0.18); }
+    .lede { color: #334155; font-size: 17px; line-height: 1.55; max-width: 54ch; }
     .stats { display: flex; gap: 18px; margin-top: 22px; flex-wrap: wrap; }
     .stat { min-width: 110px; }
     .stat b {
@@ -93,7 +93,7 @@
     .stat span { color: var(--muted); font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; }
     .stage {
       border: 1px solid var(--line); border-radius: 22px; background: var(--card);
-      padding: 16px; box-shadow: 0 0 40px rgba(62, 240, 255, 0.08);
+      padding: 16px; box-shadow: 0 16px 40px rgba(18, 32, 51, 0.08);
     }
     svg.rig { width: 100%; height: auto; display: block; }
     .section-title {
@@ -111,8 +111,8 @@
     }
     .card:hover, .card.active {
       transform: translateY(-3px);
-      border-color: rgba(245, 197, 24, 0.7);
-      box-shadow: 0 10px 30px rgba(245, 197, 24, 0.12);
+      border-color: rgba(196, 138, 0, 0.7);
+      box-shadow: 0 12px 28px rgba(196, 138, 0, 0.14);
     }
     .qty {
       font-family: Share Tech Mono, monospace; color: var(--cyan); font-size: 11px;
@@ -121,8 +121,8 @@
     .card h3 { margin: 8px 0 6px; font-size: 16px; }
     .card p { margin: 0; color: var(--muted); font-size: 13px; line-height: 1.45; }
     .detail {
-      margin-top: 18px; border: 1px solid rgba(245, 197, 24, 0.28);
-      background: linear-gradient(180deg, rgba(245, 197, 24, 0.06), rgba(10, 16, 32, 0.9));
+      margin-top: 18px; border: 1px solid rgba(196, 138, 0, 0.28);
+      background: linear-gradient(180deg, #fff8e6, #ffffff);
       border-radius: 20px; padding: 20px 22px;
     }
     .detail h3 { font-family: Orbitron, sans-serif; margin: 0 0 8px; letter-spacing: 0.06em; }
@@ -130,7 +130,7 @@
     .sup {
       display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap;
       border: 1px solid var(--line); border-radius: 14px; padding: 12px 14px;
-      background: rgba(5, 8, 16, 0.55);
+      background: rgba(243, 246, 251, 0.9);
     }
     .sup a { color: var(--gold); }
     .price { font-family: Share Tech Mono, monospace; color: var(--cyan); }
@@ -184,21 +184,21 @@
         <svg class="rig" viewBox="0 0 520 280" role="img" aria-label="Stylized cart-double pendulum">
           <defs>
             <linearGradient id="g" x1="0" x2="1">
-              <stop offset="0" stop-color="#3ef0ff"/>
-              <stop offset="1" stop-color="#f5c518"/>
+              <stop offset="0" stop-color="#0a8ea3"/>
+              <stop offset="1" stop-color="#c48a00"/>
             </linearGradient>
           </defs>
           <line x1="40" y1="210" x2="480" y2="210" stroke="url(#g)" stroke-width="3"/>
-          <rect x="190" y="188" width="90" height="28" rx="6" fill="#0d1528" stroke="#3ef0ff"/>
-          <circle cx="205" cy="222" r="8" fill="#f5c518"/>
-          <circle cx="265" cy="222" r="8" fill="#f5c518"/>
+          <rect x="190" y="188" width="90" height="28" rx="6" fill="#ffffff" stroke="#0a8ea3"/>
+          <circle cx="205" cy="222" r="8" fill="#c48a00"/>
+          <circle cx="265" cy="222" r="8" fill="#c48a00"/>
           <g style="transform-origin: 235px 188px; animation: swing 3.6s ease-in-out infinite;">
-            <line x1="235" y1="188" x2="300" y2="90" stroke="#3ef0ff" stroke-width="5"/>
-            <circle cx="300" cy="90" r="8" fill="#ff3d9a"/>
-            <line x1="300" y1="90" x2="250" y2="20" stroke="#f5c518" stroke-width="4"/>
-            <circle cx="250" cy="20" r="7" fill="#fff"/>
+            <line x1="235" y1="188" x2="300" y2="90" stroke="#0a8ea3" stroke-width="5"/>
+            <circle cx="300" cy="90" r="8" fill="#d31d73"/>
+            <line x1="300" y1="90" x2="250" y2="20" stroke="#c48a00" stroke-width="4"/>
+            <circle cx="250" cy="20" r="7" fill="#122033"/>
           </g>
-          <text x="40" y="250" fill="#8aa0b8" font-family="Share Tech Mono, monospace" font-size="12">TEENSY · SLIP · ABS · QUAD</text>
+          <text x="40" y="250" fill="#5b6b7c" font-family="Share Tech Mono, monospace" font-size="12">TEENSY · SLIP · ABS · QUAD</text>
         </svg>
       </div>
     </section>
