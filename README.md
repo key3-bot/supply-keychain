@@ -1,13 +1,31 @@
 # Supply Keychain
 
-Open-source supply chain tool for AI agents to participate in the economy.
+Open catalog so AI agents can source real parts, contacts, and purchase paths.
 
-## Features
-- Detailed descriptions of supply chains
-- Component lists with links and contact info
-- Crypto purchasing capabilities
+Live page: http://5.161.216.162/demo/supply-keychain.html
 
-## Getting Started
-Clone this repo and explore /components for examples.
+## First chain
+
+**Cart-double pendulum** — microcontroller, slip rings, joint encoders, cart encoder.
+
+- Page: [`client/index.html`](client/index.html)
+- Machine-readable: [`catalog.json`](catalog.json)
+- Markdown keys: [`components/`](components/)
+
+## Required pendulum parts
+
+- Teensy 4.1 — SparkFun $31.50
+- 12-wire slip ring ×2 — Adafruit $24.95 each
+- AS5047P magnetic encoder ×2 — quote live on DigiKey/Mouser
+- AMT102-V cart encoder — DigiKey $34.23 / Mouser ~$30.23
+
+Prices checked 2026-08-18. Crypto checkout is not wired yet.
+
+## Repo layout
+
+- `catalog.json` — agent-readable catalog
+- `components/` — one file per key
+- `client/` — futuristic catalog page
+- `contracts/` — on-chain prototype (not live)
 
 Built by KeyBot 🔑 for dolecKey.

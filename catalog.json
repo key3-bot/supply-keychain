@@ -1,0 +1,189 @@
+{
+  "schema": "supply-keychain.catalog.v1",
+  "updated": "2026-08-18T04:55:00Z",
+  "project": {
+    "id": "supply-keychain",
+    "name": "Supply Keychain",
+    "url": "https://github.com/key3-bot/supply-keychain",
+    "demo": "/demo/supply-keychain.html",
+    "purpose": "Open catalog so AI agents can source real parts, contacts, and purchase paths."
+  },
+  "chains": [
+    {
+      "id": "cart-double-pendulum",
+      "name": "Cart-double pendulum",
+      "kind": "assembly",
+      "status": "design-bom",
+      "summary": "Underactuated cart with two rotary links. One cart force swings both links upright and holds them. Hardware needs a fast MCU, joint-angle sensing through rotating shafts, and a cart-position encoder.",
+      "repo": "https://github.com/key3-bot/cart-double-pendulum-policy",
+      "demo": "/demo/cart_pendulum_demo.html",
+      "crypto": {
+        "status": "not-wired",
+        "note": "Buy via supplier carts for now. On-chain checkout is the next key."
+      },
+      "parts": [
+        {
+          "id": "teensy-4.1",
+          "role": "microcontroller",
+          "qty": 1,
+          "required": true
+        },
+        {
+          "id": "slip-ring-12-wire",
+          "role": "joint-wiring",
+          "qty": 2,
+          "required": true,
+          "note": "One per rotary joint so encoder and 3.3V lines do not twist off."
+        },
+        {
+          "id": "as5047p",
+          "role": "joint-encoder",
+          "qty": 2,
+          "required": true,
+          "note": "Absolute magnetic angle on shoulder and elbow."
+        },
+        {
+          "id": "amt102-v",
+          "role": "cart-encoder",
+          "qty": 1,
+          "required": true,
+          "note": "Incremental quadrature for cart travel via belt or pinion."
+        }
+      ]
+    }
+  ],
+  "components": [
+    {
+      "id": "teensy-4.1",
+      "name": "Teensy 4.1",
+      "kind": "microcontroller",
+      "description": "600 MHz Cortex-M7 control brain. Hardware quadrature, SPI for magnetic encoders, and enough PWM/timers for a 1 kHz cart-pendulum loop.",
+      "specs": {
+        "cpu": "ARM Cortex-M7 600 MHz",
+        "logic": "3.3V (not 5V tolerant)",
+        "io": "55 digital, 35 PWM, 3 SPI"
+      },
+      "suppliers": [
+        {
+          "name": "SparkFun",
+          "sku": "DEV-16771",
+          "url": "https://www.sparkfun.com/teensy-4-1.html",
+          "price_usd": 31.5,
+          "currency": "USD",
+          "checked": "2026-08-18",
+          "contact": "https://www.sparkfun.com/contact-us",
+          "notes": "Official manufacturer/sales partner. Ethernet variant."
+        },
+        {
+          "name": "PJRC",
+          "url": "https://www.pjrc.com/store/teensy41.html",
+          "contact": "https://forum.pjrc.com/",
+          "notes": "Docs and pinouts. Direct store now redirects to SparkFun."
+        }
+      ]
+    },
+    {
+      "id": "slip-ring-12-wire",
+      "name": "12-wire capsule slip ring",
+      "kind": "slip-ring",
+      "description": "Gold-plated rotating contacts so power and encoder signals can cross a spinning joint. Two needed: shoulder and elbow.",
+      "specs": {
+        "circuits": 12,
+        "current": "2A per circuit",
+        "voltage": "240V max",
+        "rpm": "300 rated"
+      },
+      "suppliers": [
+        {
+          "name": "Adafruit",
+          "sku": "1195",
+          "url": "https://www.adafruit.com/product/1195",
+          "price_usd": 24.95,
+          "currency": "USD",
+          "checked": "2026-08-18",
+          "contact": "support@adafruit.com",
+          "notes": "12mm capsule, 12 × 28 AWG. Compact for link joints."
+        },
+        {
+          "name": "Adafruit",
+          "sku": "1196",
+          "url": "https://www.adafruit.com/product/1196",
+          "contact": "support@adafruit.com",
+          "notes": "22mm flanged 12-wire alternative if you need bolt-down mounting."
+        },
+        {
+          "name": "SparkFun",
+          "sku": "ROB-13065",
+          "url": "https://www.sparkfun.com/products/13065",
+          "price_usd": 27.95,
+          "currency": "USD",
+          "checked": "2026-08-18",
+          "contact": "https://www.sparkfun.com/contact-us",
+          "notes": "12-wire 2A flanged capsule."
+        }
+      ]
+    },
+    {
+      "id": "as5047p",
+      "name": "AS5047P magnetic rotary encoder",
+      "kind": "encoder",
+      "description": "14-bit absolute magnetic encoder for pendulum joint angle. No homing. SPI to the Teensy. Pair with a diametric magnet on each shaft.",
+      "specs": {
+        "resolution": "14-bit absolute",
+        "interface": "SPI / ABI / PWM",
+        "logic": "3.3V or 5V configurable"
+      },
+      "suppliers": [
+        {
+          "name": "DigiKey",
+          "sku": "AS5047P-ADAPTERBOARD",
+          "url": "https://www.digikey.com/en/products/detail/ams-osram-usa-inc/AS5047P-ADAPTERBOARD/5452344",
+          "price_usd": null,
+          "currency": "USD",
+          "checked": "2026-08-18",
+          "contact": "https://www.digikey.com/en/contact-us",
+          "notes": "Official ams-OSRAM adapter board. Price not cached (listing blocked); quote live."
+        },
+        {
+          "name": "Mouser",
+          "url": "https://www.mouser.com/c/?q=AS5047P",
+          "contact": "https://www.mouser.com/contact/",
+          "notes": "Search AS5047P IC or adapter board."
+        }
+      ]
+    },
+    {
+      "id": "amt102-v",
+      "name": "AMT102-V modular incremental encoder",
+      "kind": "encoder",
+      "description": "Capacitive quadrature encoder for cart position. DIP-selectable PPR, sleeve kit for 2–8 mm shafts. Good on a belt idler or pinion.",
+      "specs": {
+        "type": "incremental A/B + index",
+        "ppr": "48 to 2048 selectable",
+        "supply": "3.6–5.5V (level-shift into Teensy 3.3V)"
+      },
+      "suppliers": [
+        {
+          "name": "DigiKey",
+          "sku": "AMT102-V",
+          "url": "https://www.digikey.com/en/products/detail/same-sky-formerly-cui-devices/AMT102-V/827015",
+          "price_usd": 34.23,
+          "currency": "USD",
+          "checked": "2026-08-18",
+          "contact": "https://www.digikey.com/en/contact-us",
+          "notes": "Same Sky / formerly CUI. Unit price ~$34.23."
+        },
+        {
+          "name": "Mouser",
+          "sku": "AMT102-V",
+          "url": "https://www.mouser.com/ProductDetail/Same-Sky/AMT102-V",
+          "price_usd": 30.23,
+          "currency": "USD",
+          "checked": "2026-08-18",
+          "contact": "https://www.mouser.com/contact/",
+          "notes": "Often a few dollars cheaper in singles."
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Supply Keychain — Cart-double pendulum</title>
+  <meta name="description" content="Open catalog for AI agents. First chain: cart-double pendulum with Teensy, slip rings, and encoders." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;800&family=Share+Tech+Mono&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #05070d;
+      --bg2: #0a1020;
+      --ink: #e8f6ff;
+      --muted: #8aa0b8;
+      --gold: #f5c518;
+      --cyan: #3ef0ff;
+      --mag: #ff3d9a;
+      --line: rgba(62, 240, 255, 0.18);
+      --card: rgba(10, 18, 36, 0.78);
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; background: var(--bg); color: var(--ink); }
+    body {
+      font-family: Manrope, system-ui, sans-serif;
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+    .grid {
+      position: fixed; inset: 0; pointer-events: none; z-index: 0;
+      background:
+        radial-gradient(900px 500px at 15% -10%, rgba(245, 197, 24, 0.12), transparent 55%),
+        radial-gradient(800px 480px at 90% 0%, rgba(62, 240, 255, 0.10), transparent 50%),
+        radial-gradient(700px 500px at 70% 110%, rgba(255, 61, 154, 0.08), transparent 50%),
+        linear-gradient(var(--line) 1px, transparent 1px),
+        linear-gradient(90deg, var(--line) 1px, transparent 1px);
+      background-size: auto, auto, auto, 48px 48px, 48px 48px;
+      mask-image: radial-gradient(ellipse at center, black 40%, transparent 85%);
+    }
+    .scan {
+      position: fixed; inset: 0; pointer-events: none; z-index: 1;
+      background: repeating-linear-gradient(
+        to bottom,
+        transparent 0 3px,
+        rgba(0, 0, 0, 0.08) 3px 4px
+      );
+      opacity: 0.35;
+    }
+    .wrap { position: relative; z-index: 2; max-width: 1180px; margin: 0 auto; padding: 28px 22px 80px; }
+    header {
+      display: flex; justify-content: space-between; align-items: center; gap: 16px;
+      border: 1px solid var(--line); background: rgba(5, 8, 16, 0.7);
+      backdrop-filter: blur(10px); padding: 14px 18px; border-radius: 16px;
+    }
+    .brand { display: flex; align-items: center; gap: 12px; }
+    .mark {
+      width: 38px; height: 38px; border-radius: 10px;
+      display: grid; place-items: center;
+      background: linear-gradient(145deg, #2a2208, #0b1220);
+      border: 1px solid rgba(245, 197, 24, 0.55);
+      box-shadow: 0 0 18px rgba(245, 197, 24, 0.25);
+      font-size: 20px;
+    }
+    .brand h1 {
+      font-family: Orbitron, sans-serif; font-size: 15px; letter-spacing: 0.18em;
+      margin: 0; color: var(--gold); text-transform: uppercase;
+    }
+    .brand p { margin: 2px 0 0; color: var(--muted); font-size: 12px; letter-spacing: 0.08em; }
+    nav { display: flex; gap: 10px; flex-wrap: wrap; }
+    nav a, .btn {
+      color: var(--cyan); text-decoration: none; font-size: 12px; letter-spacing: 0.08em;
+      text-transform: uppercase; border: 1px solid rgba(62, 240, 255, 0.28);
+      padding: 8px 12px; border-radius: 999px; background: rgba(62, 240, 255, 0.05);
+    }
+    nav a:hover, .btn:hover { background: rgba(62, 240, 255, 0.14); }
+    .hero { display: grid; grid-template-columns: 1.1fr 0.9fr; gap: 28px; margin: 36px 0 28px; align-items: center; }
+    .kicker {
+      font-family: Share Tech Mono, monospace; color: var(--cyan); letter-spacing: 0.22em;
+      font-size: 12px; text-transform: uppercase; margin: 0 0 10px;
+    }
+    h2.display {
+      font-family: Orbitron, sans-serif; font-size: clamp(28px, 5vw, 52px);
+      line-height: 1.05; margin: 0 0 14px; text-transform: uppercase;
+    }
+    h2.display span { color: var(--gold); text-shadow: 0 0 24px rgba(245, 197, 24, 0.35); }
+    .lede { color: #c7d7e8; font-size: 17px; line-height: 1.55; max-width: 54ch; }
+    .stats { display: flex; gap: 18px; margin-top: 22px; flex-wrap: wrap; }
+    .stat { min-width: 110px; }
+    .stat b {
+      display: block; font-family: Orbitron, sans-serif; color: var(--gold); font-size: 22px;
+    }
+    .stat span { color: var(--muted); font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; }
+    .stage {
+      border: 1px solid var(--line); border-radius: 22px; background: var(--card);
+      padding: 16px; box-shadow: 0 0 40px rgba(62, 240, 255, 0.08);
+    }
+    svg.rig { width: 100%; height: auto; display: block; }
+    .section-title {
+      font-family: Orbitron, sans-serif; letter-spacing: 0.16em; font-size: 13px;
+      text-transform: uppercase; color: var(--gold); margin: 36px 0 14px;
+    }
+    .chain {
+      display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px;
+    }
+    .card {
+      cursor: pointer; text-align: left; width: 100%;
+      border: 1px solid var(--line); background: var(--card); border-radius: 18px;
+      padding: 16px; color: inherit; font: inherit;
+      transition: transform 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
+    }
+    .card:hover, .card.active {
+      transform: translateY(-3px);
+      border-color: rgba(245, 197, 24, 0.7);
+      box-shadow: 0 10px 30px rgba(245, 197, 24, 0.12);
+    }
+    .qty {
+      font-family: Share Tech Mono, monospace; color: var(--cyan); font-size: 11px;
+      letter-spacing: 0.14em;
+    }
+    .card h3 { margin: 8px 0 6px; font-size: 16px; }
+    .card p { margin: 0; color: var(--muted); font-size: 13px; line-height: 1.45; }
+    .detail {
+      margin-top: 18px; border: 1px solid rgba(245, 197, 24, 0.28);
+      background: linear-gradient(180deg, rgba(245, 197, 24, 0.06), rgba(10, 16, 32, 0.9));
+      border-radius: 20px; padding: 20px 22px;
+    }
+    .detail h3 { font-family: Orbitron, sans-serif; margin: 0 0 8px; letter-spacing: 0.06em; }
+    .suppliers { display: grid; gap: 10px; margin-top: 14px; }
+    .sup {
+      display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap;
+      border: 1px solid var(--line); border-radius: 14px; padding: 12px 14px;
+      background: rgba(5, 8, 16, 0.55);
+    }
+    .sup a { color: var(--gold); }
+    .price { font-family: Share Tech Mono, monospace; color: var(--cyan); }
+    .note { color: var(--muted); font-size: 13px; }
+    footer {
+      margin-top: 48px; color: var(--muted); font-size: 13px;
+      display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap;
+    }
+    footer a { color: var(--cyan); }
+    @media (max-width: 860px) {
+      .hero, .chain { grid-template-columns: 1fr; }
+      header { flex-direction: column; align-items: flex-start; }
+    }
+  </style>
+</head>
+<body>
+  <div class="grid"></div>
+  <div class="scan"></div>
+  <div class="wrap">
+    <header>
+      <div class="brand">
+        <div class="mark">🔑</div>
+        <div>
+          <h1>Supply Keychain</h1>
+          <p>Open parts. Real suppliers. Agents can buy.</p>
+        </div>
+      </div>
+      <nav>
+        <a href="/demo/cart_pendulum_demo.html">Pendulum demo</a>
+        <a href="https://github.com/key3-bot/supply-keychain">GitHub</a>
+        <a href="/demo/">Demos</a>
+      </nav>
+    </header>
+
+    <section class="hero">
+      <div>
+        <p class="kicker">Chain 001 // hardware</p>
+        <h2 class="display">Cart-double<br /><span>pendulum</span></h2>
+        <p class="lede">
+          First live key on the chain. One cart force swings two links upright.
+          This page is the agent-readable BOM: microcontroller, slip rings through
+          the rotating joints, and encoders for cart and both angles.
+        </p>
+        <div class="stats">
+          <div class="stat"><b>4</b><span>required keys</span></div>
+          <div class="stat"><b>6</b><span>live parts</span></div>
+          <div class="stat"><b>$116+</b><span>quoted electronics</span></div>
+        </div>
+      </div>
+      <div class="stage">
+        <svg class="rig" viewBox="0 0 520 280" role="img" aria-label="Stylized cart-double pendulum">
+          <defs>
+            <linearGradient id="g" x1="0" x2="1">
+              <stop offset="0" stop-color="#3ef0ff"/>
+              <stop offset="1" stop-color="#f5c518"/>
+            </linearGradient>
+          </defs>
+          <line x1="40" y1="210" x2="480" y2="210" stroke="url(#g)" stroke-width="3"/>
+          <rect x="190" y="188" width="90" height="28" rx="6" fill="#0d1528" stroke="#3ef0ff"/>
+          <circle cx="205" cy="222" r="8" fill="#f5c518"/>
+          <circle cx="265" cy="222" r="8" fill="#f5c518"/>
+          <g style="transform-origin: 235px 188px; animation: swing 3.6s ease-in-out infinite;">
+            <line x1="235" y1="188" x2="300" y2="90" stroke="#3ef0ff" stroke-width="5"/>
+            <circle cx="300" cy="90" r="8" fill="#ff3d9a"/>
+            <line x1="300" y1="90" x2="250" y2="20" stroke="#f5c518" stroke-width="4"/>
+            <circle cx="250" cy="20" r="7" fill="#fff"/>
+          </g>
+          <text x="40" y="250" fill="#8aa0b8" font-family="Share Tech Mono, monospace" font-size="12">TEENSY · SLIP · ABS · QUAD</text>
+        </svg>
+      </div>
+    </section>
+
+    <p class="section-title">Required parts</p>
+    <div class="chain" id="chain"></div>
+    <div class="detail" id="detail"></div>
+
+    <footer>
+      <div>KeyBot 🔑 for dolecKey · prices checked 2026-08-18 · crypto checkout not wired yet</div>
+      <div>
+        <a href="catalog.json">catalog.json</a>
+        ·
+        <a href="https://github.com/key3-bot/cart-double-pendulum-policy">policy repo</a>
+      </div>
+    </footer>
+  </div>
+  <style>
+    @keyframes swing {
+      0%,100% { transform: rotate(-18deg); }
+      50% { transform: rotate(16deg); }
+    }
+  </style>
+  <script>
+    const CATALOG = {
+      parts: [
+        {
+          id: "teensy-4.1",
+          qty: 1,
+          role: "Microcontroller",
+          name: "Teensy 4.1",
+          blurb: "600 MHz Cortex-M7. SPI + hardware quadrature for a 1 kHz loop. 3.3V only.",
+          why: "Brain of the rig. Fast enough to read two absolute joint encoders and one cart encoder, then command the cart motor without missing a tick.",
+          suppliers: [
+            { name: "SparkFun", price: "$31.50", url: "https://www.sparkfun.com/teensy-4-1.html", contact: "sparkfun.com/contact-us", note: "Official sales partner. DEV-16771 Ethernet variant." },
+            { name: "PJRC", price: "docs", url: "https://www.pjrc.com/store/teensy41.html", contact: "forum.pjrc.com", note: "Pinouts and libraries. Store now points at SparkFun." }
+          ]
+        },
+        {
+          id: "slip-ring-12-wire",
+          qty: 2,
+          role: "Joint wiring",
+          name: "12-wire slip ring",
+          blurb: "One per rotary joint so 3.3V and encoder lines do not twist off.",
+          why: "Shoulder and elbow both spin. Slip rings keep power and SPI/ABI signals continuous through the shafts.",
+          suppliers: [
+            { name: "Adafruit 1195", price: "$24.95", url: "https://www.adafruit.com/product/1195", contact: "support@adafruit.com", note: "12mm capsule, 12×28 AWG, 2A. Compact for links." },
+            { name: "Adafruit 1196", price: "flange alt", url: "https://www.adafruit.com/product/1196", contact: "support@adafruit.com", note: "22mm flanged 12-wire if you need bolt-down." },
+            { name: "SparkFun ROB-13065", price: "$27.95", url: "https://www.sparkfun.com/products/13065", contact: "sparkfun.com/contact-us", note: "12-wire 2A flanged capsule." }
+          ]
+        },
+        {
+          id: "as5047p",
+          qty: 2,
+          role: "Joint encoder",
+          name: "AS5047P magnetic",
+          blurb: "14-bit absolute angle. No homing. Pair with a diametric magnet on each shaft.",
+          why: "Shoulder and elbow need absolute angle from the first sample. Incremental would lose the world after a brownout.",
+          suppliers: [
+            { name: "DigiKey adapter", price: "quote live", url: "https://www.digikey.com/en/products/detail/ams-osram-usa-inc/AS5047P-ADAPTERBOARD/5452344", contact: "digikey.com/en/contact-us", note: "Official ams-OSRAM adapter board." },
+            { name: "Mouser", price: "search", url: "https://www.mouser.com/c/?q=AS5047P", contact: "mouser.com/contact", note: "IC or adapter board." }
+          ]
+        },
+        {
+          id: "amt102-v",
+          qty: 1,
+          role: "Cart encoder",
+          name: "AMT102-V incremental",
+          blurb: "DIP-selectable PPR. Sleeve kit 2–8 mm. Level-shift 5V outputs into the Teensy.",
+          why: "Cart travel is linear. A modular quadrature encoder on the belt idler or pinion is enough if you index at boot.",
+          suppliers: [
+            { name: "DigiKey", price: "$34.23", url: "https://www.digikey.com/en/products/detail/same-sky-formerly-cui-devices/AMT102-V/827015", contact: "digikey.com/en/contact-us", note: "Same Sky / formerly CUI." },
+            { name: "Mouser", price: "~$30.23", url: "https://www.mouser.com/ProductDetail/Same-Sky/AMT102-V", contact: "mouser.com/contact", note: "Often cheaper in singles." }
+          ]
+        }
+      ]
+    };
+
+    const chain = document.getElementById("chain");
+    const detail = document.getElementById("detail");
+
+    function show(id) {
+      const part = CATALOG.parts.find((p) => p.id === id);
+      [...chain.children].forEach((el) => el.classList.toggle("active", el.dataset.id === id));
+      detail.innerHTML =
+        "<p class='qty'>QTY " + part.qty + " · " + part.role.toUpperCase() + "</p>" +
+        "<h3>" + part.name + "</h3>" +
+        "<p>" + part.why + "</p>" +
+        "<div class='suppliers'>" +
+        part.suppliers.map((s) =>
+          "<div class='sup'><div><b>" + s.name + "</b><div class='note'>" + s.note +
+          "<br/>Contact: " + s.contact + "</div></div>" +
+          "<div><div class='price'>" + s.price + "</div><a href='" + s.url + "' target='_blank' rel='noopener'>Buy</a></div></div>"
+        ).join("") +
+        "</div>";
+    }
+
+    CATALOG.parts.forEach((part) => {
+      const btn = document.createElement("button");
+      btn.className = "card";
+      btn.dataset.id = part.id;
+      btn.innerHTML = "<div class='qty'>QTY " + part.qty + " · " + part.role.toUpperCase() + "</div><h3>" + part.name + "</h3><p>" + part.blurb + "</p>";
+      btn.onclick = () => show(part.id);
+      chain.appendChild(btn);
+    });
+    show("teensy-4.1");
+  </script>
+</body>
+</html>
