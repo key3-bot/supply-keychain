@@ -74,7 +74,7 @@
       padding: 8px 12px; border-radius: 999px; background: rgba(10, 142, 163, 0.06);
     }
     nav a:hover, .btn:hover { background: rgba(10, 142, 163, 0.14); }
-    .hero { display: grid; grid-template-columns: 1.1fr 0.9fr; gap: 28px; margin: 36px 0 28px; align-items: center; }
+    .hero { display: grid; grid-template-columns: 1fr; gap: 22px; margin: 36px 0 18px; }
     .kicker {
       font-family: Share Tech Mono, monospace; color: var(--cyan); letter-spacing: 0.22em;
       font-size: 12px; text-transform: uppercase; margin: 0 0 10px;
@@ -93,9 +93,16 @@
     .stat span { color: var(--muted); font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; }
     .stage {
       border: 1px solid var(--line); border-radius: 22px; background: var(--card);
-      padding: 16px; box-shadow: 0 16px 40px rgba(18, 32, 51, 0.08);
+      padding: 12px 12px 10px; box-shadow: 0 16px 40px rgba(18, 32, 51, 0.08);
     }
-    svg.rig { width: 100%; height: auto; display: block; }
+    #cad-root { width: 100%; min-height: 360px; border-radius: 16px; overflow: hidden; background: #eef3f8; }
+    #cad-root canvas { display: block; width: 100%; height: auto; cursor: grab; }
+    .cad-bar {
+      display: flex; align-items: center; justify-content: space-between; gap: 12px;
+      flex-wrap: wrap; padding: 10px 6px 2px; color: var(--muted); font-size: 12px;
+    }
+    .cad-bar label { display: flex; align-items: center; gap: 8px; }
+    #cad-hint { font-family: Share Tech Mono, monospace; letter-spacing: 0.04em; }
     .section-title {
       font-family: Orbitron, sans-serif; letter-spacing: 0.16em; font-size: 13px;
       text-transform: uppercase; color: var(--gold); margin: 36px 0 14px;
@@ -175,31 +182,18 @@
           the rotating joints, and encoders for cart and both angles.
         </p>
         <div class="stats">
-          <div class="stat"><b>4</b><span>required keys</span></div>
-          <div class="stat"><b>6</b><span>live parts</span></div>
+          <div class="stat"><b>4</b><span>part types</span></div>
+          <div class="stat"><b>6</b><span>units</span></div>
           <div class="stat"><b>$116+</b><span>quoted electronics</span></div>
         </div>
       </div>
       <div class="stage">
-        <svg class="rig" viewBox="0 0 520 280" role="img" aria-label="Stylized cart-double pendulum">
-          <defs>
-            <linearGradient id="g" x1="0" x2="1">
-              <stop offset="0" stop-color="#0a8ea3"/>
-              <stop offset="1" stop-color="#c48a00"/>
-            </linearGradient>
-          </defs>
-          <line x1="40" y1="210" x2="480" y2="210" stroke="url(#g)" stroke-width="3"/>
-          <rect x="190" y="188" width="90" height="28" rx="6" fill="#ffffff" stroke="#0a8ea3"/>
-          <circle cx="205" cy="222" r="8" fill="#c48a00"/>
-          <circle cx="265" cy="222" r="8" fill="#c48a00"/>
-          <g style="transform-origin: 235px 188px; animation: swing 3.6s ease-in-out infinite;">
-            <line x1="235" y1="188" x2="300" y2="90" stroke="#0a8ea3" stroke-width="5"/>
-            <circle cx="300" cy="90" r="8" fill="#d31d73"/>
-            <line x1="300" y1="90" x2="250" y2="20" stroke="#c48a00" stroke-width="4"/>
-            <circle cx="250" cy="20" r="7" fill="#122033"/>
-          </g>
-          <text x="40" y="250" fill="#5b6b7c" font-family="Share Tech Mono, monospace" font-size="12">TEENSY · SLIP · ABS · QUAD</text>
-        </svg>
+        <div id="cad-root" aria-label="Interactive CAD assembly of the cart-double pendulum"></div>
+        <div class="cad-bar">
+          <span id="cad-hint">Drag to orbit · click a part</span>
+          <label>Explode <input id="cad-explode" type="range" min="0" max="1" step="0.01" value="0" /></label>
+          <button class="btn" id="cad-reset" type="button">Reset view</button>
+        </div>
       </div>
     </section>
 
@@ -212,16 +206,12 @@
       <div>
         <a href="catalog.json">catalog.json</a>
         ·
+        <a href="https://github.com/key3-bot/supply-keychain/blob/main/cad/cart-double-pendulum.scad">OpenSCAD</a>
+        ·
         <a href="https://github.com/key3-bot/cart-double-pendulum-policy">policy repo</a>
       </div>
     </footer>
   </div>
-  <style>
-    @keyframes swing {
-      0%,100% { transform: rotate(-18deg); }
-      50% { transform: rotate(16deg); }
-    }
-  </style>
   <script>
     const CATALOG = {
       parts: [
@@ -282,6 +272,7 @@
 
     function show(id) {
       const part = CATALOG.parts.find((p) => p.id === id);
+      if (!part) return;
       [...chain.children].forEach((el) => el.classList.toggle("active", el.dataset.id === id));
       detail.innerHTML =
         "<p class='qty'>QTY " + part.qty + " · " + part.role.toUpperCase() + "</p>" +
@@ -294,7 +285,9 @@
           "<div><div class='price'>" + s.price + "</div><a href='" + s.url + "' target='_blank' rel='noopener'>Buy</a></div></div>"
         ).join("") +
         "</div>";
+      if (typeof window.highlightCad === "function") window.highlightCad(id);
     }
+    window.selectKey = show;
 
     CATALOG.parts.forEach((part) => {
       const btn = document.createElement("button");
@@ -306,5 +299,14 @@
     });
     show("teensy-4.1");
   </script>
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.module.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.1/examples/jsm/"
+    }
+  }
+  </script>
+  <script type="module" src="assembly.js"></script>
 </body>
 </html>

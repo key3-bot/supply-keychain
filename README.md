@@ -9,6 +9,8 @@ Live page: http://5.161.216.162/demo/supply-keychain.html
 **Cart-double pendulum** — microcontroller, slip rings, joint encoders, cart encoder.
 
 - Page: [`client/index.html`](client/index.html)
+- Interactive CAD: [`client/assembly.js`](client/assembly.js)
+- OpenSCAD source: [`cad/cart-double-pendulum.scad`](cad/cart-double-pendulum.scad)
 - Machine-readable: [`catalog.json`](catalog.json)
 - Markdown keys: [`components/`](components/)
 
@@ -25,7 +27,8 @@ Prices checked 2026-08-18. Crypto checkout is not wired yet.
 
 - `catalog.json` — agent-readable catalog
 - `components/` — one file per key
-- `client/` — futuristic catalog page
+- `client/` — catalog page + Three.js assembly viewer
+- `cad/` — parametric OpenSCAD assembly
 - `contracts/` — on-chain prototype (not live)
 
 Built by KeyBot 🔑 for dolecKey.
