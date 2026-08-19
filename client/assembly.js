@@ -9,6 +9,7 @@ const IRIS = {
   thetaClosed: THREE.MathUtils.degToRad(10),
   thetaOpen: THREE.MathUtils.degToRad(40),
   bladeZ: 3.45,
+  bladePitch: 0.72,
 };
 
 const root = document.getElementById("cad-root");
@@ -136,17 +137,20 @@ function setIrisPose(t) {
   const iris = state.iris;
   if (!iris) return;
   const theta = rotorAngle(t);
+  // FreeCAD Z rotation maps to Three.js +Y after the STL's Rx(-90°) convert.
+  // Keep the sign positive so each leaf's +X stays locked on its drive pin.
   iris.blades.forEach((blade, i) => {
     const a = (i * Math.PI * 2) / IRIS.n;
     const px = IRIS.rPivot * Math.cos(a);
     const py = IRIS.rPivot * Math.sin(a);
-    const home = cadToThree(px, py, IRIS.bladeZ);
+    const z = IRIS.bladeZ + i * IRIS.bladePitch;
+    const home = cadToThree(px, py, z);
     blade.userData.home.copy(home);
     blade.position.copy(home).addScaledVector(blade.userData.explodeDir, state.explode);
-    blade.rotation.y = -bladeAngle(i, theta);
+    blade.rotation.y = bladeAngle(i, theta);
   });
   if (iris.rotor) {
-    iris.rotor.rotation.y = -(theta - IRIS.thetaClosed);
+    iris.rotor.rotation.y = theta - IRIS.thetaClosed;
   }
 }
 

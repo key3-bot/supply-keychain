@@ -69,35 +69,36 @@ def ring(od, id_, z0, thick):
 
 
 def stator():
-    base = ring(96.0, 70.0, 0.0, 3.2)
-    lip = ring(96.0, 90.0, 3.2, 5.0)
+    base = ring(96.0, 64.0, 0.0, 3.2)
+    lip = ring(96.0, 90.0, 3.2, 6.5)
     shape = base.fuse(lip)
     for i in range(G.N):
         x, y = G.pivot_xy(i)
-        pin = Part.makeCylinder(G.PIN_R, 6.2, App.Vector(x, y, 2.4))
+        # Pivot pins rise through the stacked blades.
+        pin = Part.makeCylinder(G.PIN_R, 8.0, App.Vector(x, y, 2.6))
         boss = Part.makeCylinder(2.4, 1.2, App.Vector(x, y, 3.0))
         shape = shape.fuse(pin).fuse(boss)
-    # four mount holes
     for ang in (math.radians(45), math.radians(135), math.radians(225), math.radians(315)):
         hx = 43.0 * math.cos(ang)
         hy = 43.0 * math.sin(ang)
-        shape = shape.cut(Part.makeCylinder(1.6, 8, App.Vector(hx, hy, -1)))
+        shape = shape.cut(Part.makeCylinder(1.6, 10, App.Vector(hx, hy, -1)))
     return shape
 
 
 def rotor():
-    body = ring(92.0, 76.0, 5.1, 2.4)
-    # knurl-ish flats
+    # Drive ring sits above the blade pack; pins hang down into the slots.
+    body = ring(94.0, 78.0, 5.6, 2.4)
     for i in range(24):
         a = i * math.pi * 2 / 24
-        nub = Part.makeCylinder(0.7, 2.4, App.Vector(46.2 * math.cos(a), 46.2 * math.sin(a), 5.1))
+        nub = Part.makeCylinder(0.7, 2.4, App.Vector(47.2 * math.cos(a), 47.2 * math.sin(a), 5.6))
         body = body.fuse(nub)
     for i in range(G.N):
         x, y = G.drive_xy(i, G.THETA_CLOSED)
-        pin = Part.makeCylinder(G.PIN_R, 3.6, App.Vector(x, y, 2.0))
-        body = body.fuse(pin)
-    lever = Part.makeBox(18.0, 6.0, 2.4, App.Vector(44.0, -3.0, 5.1))
-    knob = Part.makeCylinder(3.2, 3.4, App.Vector(62.0, 0, 5.1))
+        pin = Part.makeCylinder(G.PIN_R, 4.2, App.Vector(x, y, 1.8))
+        boss = Part.makeCylinder(2.2, 1.0, App.Vector(x, y, 5.0))
+        body = body.fuse(pin).fuse(boss)
+    lever = Part.makeBox(18.0, 6.0, 2.4, App.Vector(45.0, -3.0, 5.6))
+    knob = Part.makeCylinder(3.2, 3.4, App.Vector(63.0, 0, 5.6))
     return body.fuse(lever).fuse(knob)
 
 
