@@ -103,6 +103,13 @@
     }
     .cad-bar label { display: flex; align-items: center; gap: 8px; }
     #cad-hint { font-family: Share Tech Mono, monospace; letter-spacing: 0.04em; }
+    .cad-modes { display: flex; gap: 6px; }
+    .cad-mode.active {
+      background: rgba(196, 138, 0, 0.16);
+      border-color: rgba(196, 138, 0, 0.55);
+      color: #9a6c00;
+    }
+    .iris-only.hidden { display: none; }
     .section-title {
       font-family: Orbitron, sans-serif; letter-spacing: 0.16em; font-size: 13px;
       text-transform: uppercase; color: var(--gold); margin: 36px 0 14px;
@@ -188,9 +195,15 @@
         </div>
       </div>
       <div class="stage">
-        <div id="cad-root" aria-label="Interactive CAD assembly of the cart-double pendulum"></div>
+        <div id="cad-root" aria-label="Interactive CAD assembly"></div>
         <div class="cad-bar">
-          <span id="cad-hint">Drag to orbit · click a part</span>
+          <div class="cad-modes">
+            <button class="btn cad-mode active" id="cad-mode-iris" type="button" data-mode="iris">Iris</button>
+            <button class="btn cad-mode" id="cad-mode-pendulum" type="button" data-mode="pendulum">Pendulum</button>
+          </div>
+          <span id="cad-hint">Loading CAD…</span>
+          <label class="iris-only">Aperture <input id="cad-aperture" type="range" min="0" max="1" step="0.01" value="0.35" /></label>
+          <button class="btn iris-only" id="cad-play" type="button">Pause</button>
           <label>Explode <input id="cad-explode" type="range" min="0" max="1" step="0.01" value="0" /></label>
           <button class="btn" id="cad-reset" type="button">Reset view</button>
         </div>
@@ -206,7 +219,7 @@
       <div>
         <a href="catalog.json">catalog.json</a>
         ·
-        <a href="https://github.com/key3-bot/supply-keychain/blob/main/cad/cart-double-pendulum.scad">OpenSCAD</a>
+        <a href="https://github.com/key3-bot/supply-keychain/blob/main/cad/dilating-iris.FCStd">Iris FreeCAD</a>
         ·
         <a href="https://github.com/key3-bot/cart-double-pendulum-policy">policy repo</a>
       </div>
