@@ -17,7 +17,10 @@ EXPORTS = os.path.join(ROOT, "exports")
 DOC_PATH = os.path.join(ROOT, "dilating-iris.FCStd")
 os.makedirs(EXPORTS, exist_ok=True)
 
-PACK_TOP = G.BLADE_Z0 + G.BLADE_THICK + (G.N - 1) * G.BLADE_PITCH
+# Coplanar tilted pack: vertical envelope ≈ half-width * sin(tilt) + thickness.
+TILT_RISE = 14.0 * math.sin(abs(G.BLADE_TILT))
+PACK_TOP = G.BLADE_Z0 + 0.5 * G.BLADE_THICK + TILT_RISE
+PACK_BOT = G.BLADE_Z0 - 0.5 * G.BLADE_THICK - TILT_RISE
 
 
 def solid_to_obj(doc, name, shape, color):
@@ -82,10 +85,10 @@ def stator():
     # Inner window lip keeps leaves from dropping into the hole.
     lip = ring(68.0, 64.0, G.STATOR_FLOOR, 0.8)
     shape = floor.fuse(wall).fuse(lip)
-    pin_h = PACK_TOP - 2.2
+    pin_h = max(4.0, PACK_TOP - 2.0)
     for i in range(G.N):
         x, y = G.pivot_xy(i)
-        pin = Part.makeCylinder(G.PIN_R, pin_h, App.Vector(x, y, 2.2))
+        pin = Part.makeCylinder(G.PIN_R, pin_h, App.Vector(x, y, 2.0))
         boss = Part.makeCylinder(2.1, 0.6, App.Vector(x, y, G.STATOR_FLOOR))
         shape = shape.fuse(pin).fuse(boss)
     for ang in (math.radians(45), math.radians(135), math.radians(225), math.radians(315)):
@@ -121,11 +124,14 @@ def cover():
 def place_blade(i, theta):
     px, py = G.pivot_xy(i)
     ang = math.degrees(G.blade_angle(i, theta))
-    z = G.BLADE_Z0 + i * G.BLADE_PITCH
+    tilt = math.degrees(G.BLADE_TILT)
+    # Tilt about local slot axis (+X), then yaw to the drive pin, then to pivot.
+    # Same tilt on every leaf → each overlaps the previous all the way around.
     return (
         blade_solid()
+        .rotate(App.Vector(0, 0, 0), App.Vector(1, 0, 0), tilt)
         .rotate(App.Vector(0, 0, 0), App.Vector(0, 0, 1), ang)
-        .translate(App.Vector(px, py, z))
+        .translate(App.Vector(px, py, G.BLADE_Z0))
     )
 
 
@@ -136,7 +142,16 @@ def main():
         round(2 * G.aperture_radius(G.THETA_CLOSED), 2),
         round(2 * G.aperture_radius(G.THETA_OPEN), 2),
     )
-    print("pack_top", round(PACK_TOP, 2), "cover", G.COVER_Z, "wall", G.WALL_TOP)
+    print(
+        "pack",
+        round(PACK_BOT, 2),
+        "->",
+        round(PACK_TOP, 2),
+        "tilt_deg",
+        round(math.degrees(G.BLADE_TILT), 2),
+        "cover",
+        G.COVER_Z,
+    )
     doc = App.newDocument("DilatingIris")
 
     blade = blade_solid()

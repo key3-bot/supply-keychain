@@ -19,15 +19,16 @@ R_WINDOW = 34.0
 R_OUTER = 48.0
 R_BLADE_OUTER = 43.0
 R_CLOSED = 3.6
-BLADE_THICK = 0.28
-BLADE_PITCH = 0.32
-BLADE_Z0 = 2.70
+BLADE_THICK = 0.30
+BLADE_PITCH = 0.0  # coplanar pack — overlap via tilt, not Z stack
+BLADE_TILT = math.radians(5.5)  # same local lean on every leaf → cyclic over/under
+BLADE_Z0 = 4.40  # mid-cavity so tilted edges stay inside the cup
 RING_THICK = 1.8
 COVER_THICK = 1.8
 PIN_R = 1.05
 BOSS_R = 2.4
 # Housing cup: floor 0–2.6, wall 2.6–8.5, cover 8.5–10.3.
-# 12-leaf pack lives at 2.70 → 6.50. Rotor 6.55–8.35. Cover captures all of it.
+# Coplanar tilted pack centered ~4.4 mm. Rotor 6.55–8.35. Cover captures all of it.
 STATOR_FLOOR = 2.6
 WALL_TOP = 8.5
 ROTOR_Z = 6.55

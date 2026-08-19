@@ -22,5 +22,6 @@
 ## Dilating iris
 - Original 12-blade mechanism in `dilating-iris.FCStd`
 - Offset pitch circles (pivot Ø64, drive Ø80) with sliding slots
-- Housing is a cup: floor + wall + retaining cover. Blade pack 2.7–6.5 mm stays under the cover at 8.5 mm.
+- Housing is a cup: floor + wall + retaining cover.
+- Coplanar 12-blade pack at z=4.4 mm with 5.5° slot-axis tilt for cyclic over/under overlap (no Z stack).
 - Aperture ≈ Ø7.2 mm closed to Ø33.4 mm open

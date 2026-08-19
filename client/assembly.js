@@ -8,8 +8,10 @@ const IRIS = {
   rDrive: 40,
   thetaClosed: THREE.MathUtils.degToRad(10),
   thetaOpen: THREE.MathUtils.degToRad(40),
-  bladeZ: 2.7,
-  bladePitch: 0.32,
+  bladeZ: 4.4,
+  bladePitch: 0,
+  // Same local lean on every leaf → cyclic over/under all the way around.
+  bladeTilt: THREE.MathUtils.degToRad(5.5),
 };
 
 const root = document.getElementById("cad-root");
@@ -145,16 +147,17 @@ function setIrisPose(t) {
   if (!iris) return;
   const theta = rotorAngle(t);
   // FreeCAD Z rotation maps to Three.js +Y after the STL's Rx(-90°) convert.
-  // Keep the sign positive so each leaf's +X stays locked on its drive pin.
+  // Coplanar pack: every leaf at the same Z, same local tilt about the slot axis
+  // so each blade weaves over the previous one around the full circle.
   iris.blades.forEach((blade, i) => {
     const a = (i * Math.PI * 2) / IRIS.n;
     const px = IRIS.rPivot * Math.cos(a);
     const py = IRIS.rPivot * Math.sin(a);
-    const z = IRIS.bladeZ + i * IRIS.bladePitch;
-    const home = cadToThree(px, py, z);
+    const home = cadToThree(px, py, IRIS.bladeZ);
     blade.userData.home.copy(home);
     blade.position.copy(home).addScaledVector(blade.userData.explodeDir, state.explode);
-    blade.rotation.y = bladeAngle(i, theta);
+    // Parent yaw aims +X at the drive pin. Child mesh is pre-tilted about CAD X.
+    blade.rotation.set(0, bladeAngle(i, theta), 0);
   });
   if (iris.rotor) {
     iris.rotor.rotation.y = theta - IRIS.thetaClosed;
@@ -194,7 +197,7 @@ function highlight(id) {
     "iris-stator": "Stator cup — 12 pivot pins, wall captures the pack",
     "iris-rotor": "Drive ring — 12 pins in blade slots",
     "iris-cover": "Retaining cover — holds leaves in the cup",
-    "iris-blade": "12-blade iris — Ø7.2 → Ø33.4 mm",
+    "iris-blade": "12 coplanar tilted blades — Ø7.2 → Ø33.4 mm",
   };
   hint.textContent = labels[id] || (state.mode === "iris" ? "Drag to orbit · iris is dilating" : "Drag to orbit · click a part");
 }
@@ -262,11 +265,13 @@ async function buildIris() {
     const mesh = bladeMesh.clone();
     mesh.material = mats.blade.clone();
     mesh.material.color.offsetHSL(0, 0, (i % 3) * 0.03);
-    mesh.rotation.x = -Math.PI / 2;
+    // CAD Z-up → Three Y-up, then lean about the slot axis (CAD +X).
+    // Same tilt on every leaf → continuous cyclic overlap around the ring.
+    mesh.rotation.x = -Math.PI / 2 + IRIS.bladeTilt;
     group.add(mesh);
     const a = (i * Math.PI * 2) / IRIS.n;
     const home = cadToThree(IRIS.rPivot * Math.cos(a), IRIS.rPivot * Math.sin(a), IRIS.bladeZ);
-    addPart("iris-blade", group, home, new THREE.Vector3(0, 6 + i * 0.4, 0));
+    addPart("iris-blade", group, home, new THREE.Vector3(Math.cos(a) * 8, 10, -Math.sin(a) * 8));
     blades.push(group);
   }
 
