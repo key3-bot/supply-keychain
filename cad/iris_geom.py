@@ -19,11 +19,19 @@ R_WINDOW = 34.0
 R_OUTER = 48.0
 R_BLADE_OUTER = 43.0
 R_CLOSED = 3.6
-BLADE_THICK = 0.70
-RING_THICK = 2.8
+BLADE_THICK = 0.28
+BLADE_PITCH = 0.32
+BLADE_Z0 = 2.70
+RING_THICK = 1.8
 COVER_THICK = 1.8
 PIN_R = 1.05
-BOSS_R = 3.0
+BOSS_R = 2.4
+# Housing cup: floor 0–2.6, wall 2.6–8.5, cover 8.5–10.3.
+# 12-leaf pack lives at 2.70 → 6.50. Rotor 6.55–8.35. Cover captures all of it.
+STATOR_FLOOR = 2.6
+WALL_TOP = 8.5
+ROTOR_Z = 6.55
+COVER_Z = 8.5
 
 THETA_CLOSED = math.radians(10.0)
 THETA_OPEN = math.radians(40.0)

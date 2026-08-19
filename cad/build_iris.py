@@ -1,4 +1,5 @@
 # FreeCAD 1.1 headless dilating iris. Units: mm.
+# Housing is a cup: floor + tall wall + retaining cover so the blade pack stays captured.
 
 import math
 import os
@@ -15,6 +16,8 @@ import iris_geom as G
 EXPORTS = os.path.join(ROOT, "exports")
 DOC_PATH = os.path.join(ROOT, "dilating-iris.FCStd")
 os.makedirs(EXPORTS, exist_ok=True)
+
+PACK_TOP = G.BLADE_Z0 + G.BLADE_THICK + (G.N - 1) * G.BLADE_PITCH
 
 
 def solid_to_obj(doc, name, shape, color):
@@ -69,46 +72,56 @@ def ring(od, id_, z0, thick):
 
 
 def stator():
-    base = ring(96.0, 64.0, 0.0, 3.2)
-    lip = ring(96.0, 90.0, 3.2, 6.5)
-    shape = base.fuse(lip)
+    # Floor + window. Inner hole is the optical aperture well.
+    floor = ring(96.0, 64.0, 0.0, G.STATOR_FLOOR)
+    # Tall outer wall captures the whole blade pack and the drive ring.
+    wall = ring(96.0, 88.0, G.STATOR_FLOOR, G.WALL_TOP - G.STATOR_FLOOR)
+    # Drive-arm window so the rotor knob can sweep 0–30° without leaving the cup.
+    slot = Part.makeBox(10.0, 28.0, 3.4, App.Vector(38.0, -8.0, G.ROTOR_Z - 0.3))
+    wall = wall.cut(slot)
+    # Inner window lip keeps leaves from dropping into the hole.
+    lip = ring(68.0, 64.0, G.STATOR_FLOOR, 0.8)
+    shape = floor.fuse(wall).fuse(lip)
+    pin_h = PACK_TOP - 2.2
     for i in range(G.N):
         x, y = G.pivot_xy(i)
-        # Pivot pins rise through the stacked blades.
-        pin = Part.makeCylinder(G.PIN_R, 8.0, App.Vector(x, y, 2.6))
-        boss = Part.makeCylinder(2.4, 1.2, App.Vector(x, y, 3.0))
+        pin = Part.makeCylinder(G.PIN_R, pin_h, App.Vector(x, y, 2.2))
+        boss = Part.makeCylinder(2.1, 0.6, App.Vector(x, y, G.STATOR_FLOOR))
         shape = shape.fuse(pin).fuse(boss)
     for ang in (math.radians(45), math.radians(135), math.radians(225), math.radians(315)):
-        hx = 43.0 * math.cos(ang)
-        hy = 43.0 * math.sin(ang)
-        shape = shape.cut(Part.makeCylinder(1.6, 10, App.Vector(hx, hy, -1)))
+        hx = 45.5 * math.cos(ang)
+        hy = 45.5 * math.sin(ang)
+        shape = shape.cut(Part.makeCylinder(1.6, 14, App.Vector(hx, hy, -1)))
     return shape
 
 
 def rotor():
-    # Drive ring sits above the blade pack; pins hang down into the slots.
-    body = ring(94.0, 78.0, 5.6, 2.4)
+    # Drive ring sits on top of the pack, still inside the cup. Pins hang into slots.
+    body = ring(86.5, 74.0, G.ROTOR_Z, G.RING_THICK)
     for i in range(24):
         a = i * math.pi * 2 / 24
-        nub = Part.makeCylinder(0.7, 2.4, App.Vector(47.2 * math.cos(a), 47.2 * math.sin(a), 5.6))
+        nub = Part.makeCylinder(0.55, G.RING_THICK, App.Vector(43.5 * math.cos(a), 43.5 * math.sin(a), G.ROTOR_Z))
         body = body.fuse(nub)
+    pin_len = G.ROTOR_Z + 0.4 - G.BLADE_Z0
     for i in range(G.N):
         x, y = G.drive_xy(i, G.THETA_CLOSED)
-        pin = Part.makeCylinder(G.PIN_R, 4.2, App.Vector(x, y, 1.8))
-        boss = Part.makeCylinder(2.2, 1.0, App.Vector(x, y, 5.0))
+        pin = Part.makeCylinder(G.PIN_R, pin_len, App.Vector(x, y, G.BLADE_Z0 - 0.15))
+        boss = Part.makeCylinder(2.0, 0.8, App.Vector(x, y, G.ROTOR_Z))
         body = body.fuse(pin).fuse(boss)
-    lever = Part.makeBox(18.0, 6.0, 2.4, App.Vector(45.0, -3.0, 5.6))
-    knob = Part.makeCylinder(3.2, 3.4, App.Vector(63.0, 0, 5.6))
+    lever = Part.makeBox(12.0, 4.4, G.RING_THICK, App.Vector(34.0, -2.2, G.ROTOR_Z))
+    knob = Part.makeCylinder(2.4, G.RING_THICK, App.Vector(47.2, 0, G.ROTOR_Z))
     return body.fuse(lever).fuse(knob)
 
 
 def cover():
-    return ring(96.0, 70.0, 7.6, G.COVER_THICK)
+    # Flat retainer on the wall. Overlaps the drive ring so the pack cannot lift out.
+    return ring(96.0, 72.0, G.COVER_Z, G.COVER_THICK)
 
 
-def place_blade(i, theta, z=3.45):
+def place_blade(i, theta):
     px, py = G.pivot_xy(i)
     ang = math.degrees(G.blade_angle(i, theta))
+    z = G.BLADE_Z0 + i * G.BLADE_PITCH
     return (
         blade_solid()
         .rotate(App.Vector(0, 0, 0), App.Vector(0, 0, 1), ang)
@@ -118,7 +131,12 @@ def place_blade(i, theta, z=3.45):
 
 def main():
     print("FreeCAD", App.Version())
-    print("iris aperture closed/open", round(2 * G.aperture_radius(G.THETA_CLOSED), 2), round(2 * G.aperture_radius(G.THETA_OPEN), 2))
+    print(
+        "iris aperture closed/open",
+        round(2 * G.aperture_radius(G.THETA_CLOSED), 2),
+        round(2 * G.aperture_radius(G.THETA_OPEN), 2),
+    )
+    print("pack_top", round(PACK_TOP, 2), "cover", G.COVER_Z, "wall", G.WALL_TOP)
     doc = App.newDocument("DilatingIris")
 
     blade = blade_solid()
@@ -139,7 +157,6 @@ def main():
         solid_to_obj(doc, name.replace("-", "_"), shape, colors[name])
         mesh_export(shape, os.path.join(EXPORTS, name + ".stl"))
 
-    # Assembled mid-open preview inside the FreeCAD file.
     for i in range(G.N):
         solid_to_obj(doc, "blade_%d" % i, place_blade(i, mid), (0.55 + 0.03 * (i % 3), 0.60, 0.66))
 

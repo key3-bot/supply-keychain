@@ -8,8 +8,8 @@ const IRIS = {
   rDrive: 40,
   thetaClosed: THREE.MathUtils.degToRad(10),
   thetaOpen: THREE.MathUtils.degToRad(40),
-  bladeZ: 3.45,
-  bladePitch: 0.72,
+  bladeZ: 2.7,
+  bladePitch: 0.32,
 };
 
 const root = document.getElementById("cad-root");
@@ -66,7 +66,14 @@ const mats = {
   plastic: new THREE.MeshStandardMaterial({ color: 0x2b2b2b, roughness: 0.4, metalness: 0.15 }),
   stator: metal(0x3a414a, { roughness: 0.38, metalness: 0.78 }),
   rotor: metal(0xc9a227, { roughness: 0.28, metalness: 0.82 }),
-  cover: metal(0x2c3238, { roughness: 0.36, metalness: 0.7 }),
+  cover: new THREE.MeshStandardMaterial({
+    color: 0x2c3238,
+    roughness: 0.22,
+    metalness: 0.55,
+    transparent: true,
+    opacity: 0.42,
+    depthWrite: true,
+  }),
   blade: metal(0x9aa4b0, { roughness: 0.22, metalness: 0.88 }),
 };
 
@@ -184,9 +191,9 @@ function highlight(id) {
     as5047p: "AS5047P-TS_EK_AB — 28 × 22 mm",
     "amt102-v": "AMT102-V — Ø31 × 28.77 mm",
     frame: "Rail / links — mechanical follow-on",
-    "iris-stator": "Stator ring — 8 fixed pivot pins",
-    "iris-rotor": "Drive ring — 8 pins in blade slots",
-    "iris-cover": "Retaining cover",
+    "iris-stator": "Stator cup — 12 pivot pins, wall captures the pack",
+    "iris-rotor": "Drive ring — 12 pins in blade slots",
+    "iris-cover": "Retaining cover — holds leaves in the cup",
     "iris-blade": "12-blade iris — Ø7.2 → Ø33.4 mm",
   };
   hint.textContent = labels[id] || (state.mode === "iris" ? "Drag to orbit · iris is dilating" : "Drag to orbit · click a part");
