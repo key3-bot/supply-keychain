@@ -20,6 +20,6 @@
 - Housing R15.50 (Ø31 mm), overall height 28.77 mm
 
 ## Dilating iris
-- Original 8-blade mechanism in `dilating-iris.FCStd`
+- Original 12-blade mechanism in `dilating-iris.FCStd`
 - Offset pitch circles (pivot Ø64, drive Ø80) with sliding slots
-- Aperture ≈ Ø12 mm closed to Ø33.5 mm open
+- Aperture ≈ Ø7.2 mm closed to Ø33.4 mm open

@@ -3,7 +3,7 @@ import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { STLLoader } from "three/addons/loaders/STLLoader.js";
 
 const IRIS = {
-  n: 8,
+  n: 12,
   rPivot: 32,
   rDrive: 40,
   thetaClosed: THREE.MathUtils.degToRad(10),
@@ -187,7 +187,7 @@ function highlight(id) {
     "iris-stator": "Stator ring — 8 fixed pivot pins",
     "iris-rotor": "Drive ring — 8 pins in blade slots",
     "iris-cover": "Retaining cover",
-    "iris-blade": "Comma blade — Ø12 → Ø33.5 mm",
+    "iris-blade": "12-blade iris — Ø7.2 → Ø33.4 mm",
   };
   hint.textContent = labels[id] || (state.mode === "iris" ? "Drag to orbit · iris is dilating" : "Drag to orbit · click a part");
 }

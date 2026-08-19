@@ -11,7 +11,7 @@ Live page: http://5.161.216.162/demo/supply-keychain.html
 - Page: [`client/index.html`](client/index.html)
 - Interactive CAD: [`client/assembly.js`](client/assembly.js)
 - FreeCAD pendulum: [`cad/cart-double-pendulum.FCStd`](cad/cart-double-pendulum.FCStd)
-- FreeCAD iris: [`cad/dilating-iris.FCStd`](cad/dilating-iris.FCStd) — animated Ø12–Ø33.5 mm
+- FreeCAD iris: [`cad/dilating-iris.FCStd`](cad/dilating-iris.FCStd) — 12-blade, animated Ø7.2–Ø33.4 mm
 - Exported meshes: [`cad/exports/`](cad/exports/)
 - Sources: [`cad/ATTRIBUTION.md`](cad/ATTRIBUTION.md)
 - Machine-readable: [`catalog.json`](catalog.json)
