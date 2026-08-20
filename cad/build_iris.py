@@ -68,11 +68,12 @@ def _bounds():
 
 
 def blade_solid():
+    # BLADE_POLY is already the notched 2D outline (body + arm minus neighbor pin paths).
+    # Do not fuse the raw SLOT_ARM_POLY — that rectangle would put material back on the pins.
     body = face_from_poly(G.BLADE_POLY).extrude(App.Vector(0, 0, G.BLADE_THICK))
-    arm = face_from_poly(G.SLOT_ARM_POLY).extrude(App.Vector(0, 0, G.BLADE_THICK))
     hub = Part.makeCylinder(G.BOSS_R, G.BLADE_THICK)
     drive_boss = Part.makeCylinder(G.BOSS_R, G.BLADE_THICK, App.Vector(G.SLOT_OUT, 0, 0))
-    body = body.fuse(arm).fuse(hub).fuse(drive_boss)
+    body = body.fuse(hub).fuse(drive_boss)
     hole = Part.makeCylinder(G.PIN_R + 0.08, G.BLADE_THICK + 2, App.Vector(0, 0, -1))
     slot = Part.makeBox(
         G.SLOT_OUT - G.SLOT_IN,
@@ -82,35 +83,7 @@ def blade_solid():
     )
     cap_a = Part.makeCylinder(G.SLOT_HALF, G.BLADE_THICK + 2, App.Vector(G.SLOT_IN, 0, -1))
     cap_b = Part.makeCylinder(G.SLOT_HALF, G.BLADE_THICK + 2, App.Vector(G.SLOT_OUT, 0, -1))
-    body = body.cut(hole).cut(slot.fuse(cap_a).fuse(cap_b))
-    # Foreign-pin keep-outs across the stroke. Decimate heavily — full 500+
-    # pairwise fuses hang FreeCAD; nearest-neighbor samples are enough for the mesh.
-    cuts = list(getattr(G, "PIN_CUTS", []) or [])
-    if cuts:
-        # Keep only cuts that actually hit the blade outline, quantized ~1.2 mm.
-        kept = []
-        seen = set()
-        for cx, cy, r in cuts:
-            key = (round(float(cx) / 1.2), round(float(cy) / 1.2))
-            if key in seen:
-                continue
-            if not G._point_in_poly(float(cx), float(cy), G.BLADE_POLY):
-                # still keep if disk overlaps outline bbox-ish near body
-                if abs(float(cy)) > 18 and abs(float(cx)) > 30:
-                    continue
-            seen.add(key)
-            kept.append((float(cx), float(cy), float(r)))
-        # Cap to keep boolean time sane.
-        if len(kept) > 80:
-            step = max(1, len(kept) // 80)
-            kept = kept[::step][:80]
-        print("blade pin keep-outs candidate", len(cuts), "using", len(kept))
-        for i, (cx, cy, r) in enumerate(kept):
-            cyl = Part.makeCylinder(r, G.BLADE_THICK + 2, App.Vector(cx, cy, -1))
-            body = body.cut(cyl)
-            if (i + 1) % 20 == 0:
-                print("  cut", i + 1, "/", len(kept))
-    return body
+    return body.cut(hole).cut(slot.fuse(cap_a).fuse(cap_b))
 
 
 def ring(od, id_, z0, thick):

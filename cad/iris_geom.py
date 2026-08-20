@@ -1,9 +1,8 @@
 #!/usr/bin/env python3
 """Dilating iris — 12 comma blades, offset pitch circles, sliding slots.
 
-Outline is a continuous comma (fat outer rim for closed coverage).
-Foreign-pin keep-outs are separate disks: used by solid tests and cut from
-the FreeCAD blade solid so neighboring pins never hit material.
+The blade outline is notched in 2D around neighboring pin paths so the
+extruded mesh itself never occupies pivot/drive pins of adjacent leaves.
 """
 
 from __future__ import annotations
@@ -11,6 +10,8 @@ from __future__ import annotations
 import json
 import math
 from pathlib import Path
+
+import numpy as np
 
 N = 12
 R_PIVOT = 32.0
@@ -37,9 +38,8 @@ THETA_CLOSED = math.radians(10.0)
 THETA_OPEN = math.radians(40.0)
 
 INNER_SPAN = math.radians(100.0)
-# Wider outer arc than first ship so closed OD scallops fill.
 FAT = math.radians(11.0)
-PIN_CLEAR = 0.60
+PIN_CLEAR = 0.70
 
 
 def clamp01(t: float) -> float:
@@ -134,13 +134,12 @@ def _area(poly: list[tuple[float, float]]) -> float:
 
 
 def blade_world_closed() -> list[tuple[float, float]]:
-    """Continuous comma in closed world pose. Fat OD kills closed scallops."""
+    """Comma leaf in closed world pose with fat outer rim."""
     mid = 0.5 * THETA_CLOSED
     a0 = mid - 0.5 * INNER_SPAN
     a1 = mid + 0.5 * INNER_SPAN
     inner = _arc(R_CLOSED, a0, a1, 28)
     start, end = inner[0], inner[-1]
-
     dxy = drive_xy(0, THETA_CLOSED)
     d_ang = math.atan2(dxy[1], dxy[0])
     p_ang = 0.0
@@ -148,12 +147,10 @@ def blade_world_closed() -> list[tuple[float, float]]:
     a_out0 = p_ang - math.radians(18.0) - FAT
     d_out = _polar(R_BLADE_OUTER, a_out1)
     p_out = _polar(R_BLADE_OUTER, a_out0)
-
     lead_ctrl = (
         0.30 * end[0] + 0.50 * d_out[0] + 4.5 * math.cos(d_ang + 0.7),
         0.30 * end[1] + 0.50 * d_out[1] + 4.5 * math.sin(d_ang + 0.7),
     )
-    # Keep OD continuous, tuck trail at mid-radius so the aperture still opens.
     rim_hold = _polar(R_BLADE_OUTER - 0.3, a_out0 + math.radians(12.0))
     trail_waist = _polar(21.5, mid - math.radians(15.0))
     trail_ctrl_a = (0.75 * p_out[0] + 0.18 * rim_hold[0], 0.75 * p_out[1] + 0.18 * rim_hold[1])
@@ -176,45 +173,169 @@ def blade_world_closed() -> list[tuple[float, float]]:
     return _clean(poly)
 
 
-def blade_local_poly() -> list[tuple[float, float]]:
-    local = [world_to_local(x, y, 0, THETA_CLOSED) for x, y in blade_world_closed()]
-    poly = _clean(local)
-    if _area(poly) < 0:
-        poly.reverse()
-    return poly
+def foreign_pin_disks_local(samples: int = 33) -> list[tuple[float, float, float]]:
+    """Keep-out disks for neighboring pins across the full stroke (blade-0 local).
 
-def foreign_pin_disks_local(samples: int = 25) -> list[tuple[float, float, float]]:
-    """Keep-out disks for every foreign pin across the full stroke (blade-0 local)."""
+    The live collisions are neighbor pivot +1 and neighbor drive -1. Sample
+    those densely; still include ±2 for safety.
+    """
     disks = []
     seen = set()
-    own_keep = PIN_R + BOSS_R + 1.0
+    own_keep = PIN_R + BOSS_R + 1.2
     slot_out = pin_sep(THETA_OPEN) + 4.0
+    r_cut = PIN_R + PIN_CLEAR
+    neighbors = (1, 2, N - 2, N - 1)
     for k in range(samples):
         t = k / max(1, samples - 1)
         th = rotor_angle(t)
-        for j in range(1, N):
+        for j in neighbors:
             for xy in (pivot_xy(j), drive_xy(j, th)):
                 lx, ly = world_to_local(*xy, 0, th)
                 if math.hypot(lx, ly) < own_keep:
                     continue
-                # Preserve own pivot hub and sliding-slot corridor.
-                if -2.8 <= ly <= 2.8 and 0.0 <= lx <= slot_out:
+                if -2.6 <= ly <= 2.6 and 0.0 <= lx <= slot_out:
                     continue
                 key = (round(lx, 2), round(ly, 2))
                 if key in seen:
                     continue
                 seen.add(key)
-                disks.append((lx, ly, PIN_R + PIN_CLEAR))
+                disks.append((lx, ly, r_cut))
     return disks
 
 
-BLADE_POLY = blade_local_poly()
-PIN_CUTS = foreign_pin_disks_local()
+def _keep_component(mask, seed):
+    h, ww = mask.shape
+    sx, sy = seed
+    if not (0 <= sx < ww and 0 <= sy < h and mask[sy, sx]):
+        ys, xs = np.nonzero(mask)
+        if len(xs) == 0:
+            return mask
+        sx, sy = int(xs[0]), int(ys[0])
+    out = np.zeros_like(mask, dtype=bool)
+    work = mask.copy()
+    stack = [(sx, sy)]
+    while stack:
+        x, y = stack.pop()
+        if x < 0 or y < 0 or x >= ww or y >= h or not work[y, x]:
+            continue
+        work[y, x] = False
+        out[y, x] = True
+        stack.extend(((x + 1, y), (x - 1, y), (x, y + 1), (x, y - 1)))
+    return out
+
+
+def _march_contour(mask, minx, maxy, px):
+    h, ww = mask.shape
+    segs = []
+
+    def pt(ix, iy):
+        return (minx + ix * px, maxy - iy * px)
+
+    for y in range(h - 1):
+        for x in range(ww - 1):
+            tl = 1 if mask[y, x] else 0
+            tr = 1 if mask[y, x + 1] else 0
+            br = 1 if mask[y + 1, x + 1] else 0
+            bl = 1 if mask[y + 1, x] else 0
+            idx = tl | (tr << 1) | (br << 2) | (bl << 3)
+            if idx in (0, 15):
+                continue
+            a = pt(x + 0.5, y)
+            b = pt(x + 1, y + 0.5)
+            c = pt(x + 0.5, y + 1)
+            d = pt(x, y + 0.5)
+            table = {
+                1: (a, d), 2: (a, b), 3: (d, b), 4: (b, c),
+                5: (a, b, d, c), 6: (a, c), 7: (d, c), 8: (d, c),
+                9: (a, c), 10: (a, d, b, c), 11: (b, c), 12: (d, b),
+                13: (a, b), 14: (a, d),
+            }
+            pts = table.get(idx)
+            if pts is None:
+                continue
+            if len(pts) == 2:
+                segs.append((pts[0], pts[1]))
+            else:
+                segs.append((pts[0], pts[1]))
+                segs.append((pts[2], pts[3]))
+    if not segs:
+        return []
+
+    def key(p):
+        return (round(p[0], 4), round(p[1], 4))
+
+    adj = {}
+    for p0, p1 in segs:
+        adj.setdefault(key(p0), []).append(p1)
+        adj.setdefault(key(p1), []).append(p0)
+    start = min((p for seg in segs for p in seg), key=lambda p: (p[0], p[1]))
+    loop = [start]
+    prev = None
+    cur = start
+    for _ in range(len(segs) + 5):
+        opts = adj.get(key(cur), [])
+        nxt = None
+        for cand in opts:
+            if prev is not None and key(cand) == key(prev):
+                continue
+            nxt = cand
+            break
+        if nxt is None:
+            break
+        if key(nxt) == key(start) and len(loop) > 3:
+            break
+        loop.append(nxt)
+        prev, cur = cur, nxt
+    return loop
+
+
+def _poly_minus_disks(poly, disks, extra_polys=None, px=0.12):
+    from PIL import Image, ImageDraw
+
+    extras = extra_polys or []
+    xs = [p[0] for p in poly]
+    ys = [p[1] for p in poly]
+    for ep in extras:
+        xs.extend(p[0] for p in ep)
+        ys.extend(p[1] for p in ep)
+    pad = 3.5
+    minx, maxx = min(xs) - pad, max(xs) + pad
+    miny, maxy = min(ys) - pad, max(ys) + pad
+    ww = int(math.ceil((maxx - minx) / px)) + 1
+    hh = int(math.ceil((maxy - miny) / px)) + 1
+    img = Image.new("L", (ww, hh), 0)
+    draw = ImageDraw.Draw(img)
+
+    def draw_poly(pp):
+        pix = [((x - minx) / px, (maxy - y) / px) for x, y in pp]
+        draw.polygon(pix, fill=255)
+
+    draw_poly(poly)
+    for ep in extras:
+        draw_poly(ep)
+    for cx, cy, r in disks:
+        if cx < minx - r or cx > maxx + r or cy < miny - r or cy > maxy + r:
+            continue
+        ix = (cx - minx) / px
+        iy = (maxy - cy) / px
+        rr = r / px
+        draw.ellipse([ix - rr, iy - rr, ix + rr, iy + rr], fill=0)
+    mask = np.array(img) > 0
+    seed = (int((6.0 - minx) / px), int((maxy - 0.0) / px))
+    mask = _keep_component(mask, seed)
+    contour = _march_contour(mask, minx, maxy, px)
+    contour = _clean(contour, eps=0.16)
+    if len(contour) < 12:
+        return poly
+    if _area(contour) < 0:
+        contour.reverse()
+    return contour
+
 
 SLOT_IN = max(4.0, pin_sep(THETA_CLOSED) - 2.2)
 SLOT_OUT = pin_sep(THETA_OPEN) + 2.8
 SLOT_HALF = 1.15
-ARM_HALF = 3.4
+ARM_HALF = 2.6
 
 SLOT_ARM_POLY = [
     (2.0, -ARM_HALF),
@@ -224,7 +345,23 @@ SLOT_ARM_POLY = [
 ]
 
 
-def _point_in_poly(x: float, y: float, poly: list[tuple[float, float]]) -> bool:
+def blade_local_poly():
+    local = [world_to_local(x, y, 0, THETA_CLOSED) for x, y in blade_world_closed()]
+    poly = _clean(local)
+    if _area(poly) < 0:
+        poly.reverse()
+    disks = foreign_pin_disks_local()
+    poly = _poly_minus_disks(poly, disks, extra_polys=[SLOT_ARM_POLY])
+    if _area(poly) < 0:
+        poly.reverse()
+    return _clean(poly, eps=0.12)
+
+
+BLADE_POLY = blade_local_poly()
+PIN_CUTS = foreign_pin_disks_local()
+
+
+def _point_in_poly(x, y, poly):
     inside = False
     m = len(poly)
     for i in range(m):
@@ -237,18 +374,8 @@ def _point_in_poly(x: float, y: float, poly: list[tuple[float, float]]) -> bool:
     return inside
 
 
-def _in_pin_cut_local(x: float, y: float) -> bool:
-    for cx, cy, r in PIN_CUTS:
-        if (x - cx) * (x - cx) + (y - cy) * (y - cy) <= r * r:
-            return True
-    return False
-
-
-def solid_local(x: float, y: float) -> bool:
-    """Blade material = outline/arm/boss minus foreign-pin keep-outs."""
-    if _in_pin_cut_local(x, y):
-        return False
-    if _point_in_poly(x, y, BLADE_POLY) or _point_in_poly(x, y, SLOT_ARM_POLY):
+def covers_local(x, y):
+    if _point_in_poly(x, y, BLADE_POLY):
         return True
     if x * x + y * y <= BOSS_R * BOSS_R:
         return True
@@ -256,15 +383,11 @@ def solid_local(x: float, y: float) -> bool:
     return dx * dx + y * y <= BOSS_R * BOSS_R
 
 
-def covers_local(x: float, y: float) -> bool:
-    return solid_local(x, y)
-
-
-def warp_z(x: float, y: float) -> float:
+def warp_z(x, y):
     return 0.0
 
 
-def z_range_local(x: float, y: float):
+def z_range_local(x, y):
     h = 0.5 * BLADE_THICK
     return (-h, h)
 
@@ -275,7 +398,7 @@ def pack_envelope():
     return (bot, top)
 
 
-def solid_clearance(theta: float, samples: int = 20) -> dict:
+def solid_clearance(theta, samples=20):
     clr = BLADE_PITCH - BLADE_THICK
     return {
         "hits": N,
@@ -287,7 +410,7 @@ def solid_clearance(theta: float, samples: int = 20) -> dict:
     }
 
 
-def neighbor_clearance(theta: float, samples: int = 20) -> dict:
+def neighbor_clearance(theta, samples=20):
     sc = solid_clearance(theta, samples=samples)
     return {
         "min_abs_sep": sc["min_clearance"],
@@ -298,28 +421,24 @@ def neighbor_clearance(theta: float, samples: int = 20) -> dict:
     }
 
 
-def blade_world(i: int, theta: float) -> list[tuple[float, float]]:
+def blade_world(i, theta):
     return [local_to_world(x, y, i, theta) for x, y in BLADE_POLY]
 
 
-def solid_world_point(x: float, y: float, i: int, theta: float) -> bool:
-    lx, ly = world_to_local(x, y, i, theta)
-    return solid_local(lx, ly)
-
-
-def _near_pin(x: float, y: float, theta: float) -> bool:
+def _near_pin(x, y, theta):
     rr = PIN_R * PIN_R
     for i in range(N):
         px, py = pivot_xy(i)
-        if (x - px) * (x - px) + (y - py) * (y - py) <= rr:
+        if (x - px) ** 2 + (y - py) ** 2 <= rr:
             return True
         dx, dy = drive_xy(i, theta)
-        if (x - dx) * (x - dx) + (y - dy) * (y - dy) <= rr:
+        if (x - dx) ** 2 + (y - dy) ** 2 <= rr:
             return True
     return False
 
 
-def coverage_gaps(theta: float, rings: int = 8, rays: int = 72) -> int:
+def coverage_gaps(theta, rings=8, rays=72):
+    polys = [blade_world(i, theta) for i in range(N)]
     misses = 0
     r0 = R_CLOSED + 1.8
     r1 = 29.0
@@ -330,12 +449,13 @@ def coverage_gaps(theta: float, rings: int = 8, rays: int = 72) -> int:
             x, y = r * math.cos(a), r * math.sin(a)
             if _near_pin(x, y, theta):
                 continue
-            if not any(solid_world_point(x, y, i, theta) for i in range(N)):
+            if not any(_point_in_poly(x, y, p) for p in polys):
                 misses += 1
     return misses
 
 
-def outer_coverage_gaps(theta: float, rings: int = 6, rays: int = 180) -> int:
+def outer_coverage_gaps(theta, rings=6, rays=180):
+    polys = [blade_world(i, theta) for i in range(N)]
     misses = 0
     r0 = 30.0
     r1 = R_BLADE_OUTER - 0.35
@@ -346,12 +466,12 @@ def outer_coverage_gaps(theta: float, rings: int = 6, rays: int = 180) -> int:
             x, y = r * math.cos(a), r * math.sin(a)
             if _near_pin(x, y, theta):
                 continue
-            if not any(solid_world_point(x, y, i, theta) for i in range(N)):
+            if not any(_point_in_poly(x, y, p) for p in polys):
                 misses += 1
     return misses
 
 
-def _min_edge_dist(px: float, py: float, poly: list[tuple[float, float]]) -> float:
+def _min_edge_dist(px, py, poly):
     best = 1e9
     m = len(poly)
     for i in range(m):
@@ -367,41 +487,21 @@ def _min_edge_dist(px: float, py: float, poly: list[tuple[float, float]]) -> flo
     return best
 
 
-def pin_blade_clearance(theta: float) -> dict:
-    """Clearance of foreign pins to blade SOLID (outline minus keep-outs)."""
+def pin_blade_clearance(theta):
+    """Min clearance of foreign pins to the extruded blade outline."""
     min_d = 1e9
     worst = None
     n_collide = 0
-    probe = [0.0, 0.5 * PIN_R, PIN_R]
     for i in range(N):
+        poly = blade_world(i, theta)
         for j in range(N):
             if i == j:
                 continue
             for kind, xy in (("pivot", pivot_xy(j)), ("drive", drive_xy(j, theta))):
-                lx, ly = world_to_local(xy[0], xy[1], i, theta)
-                hit_r = None
-                for s in range(16):
-                    ang = 2.0 * math.pi * s / 16
-                    ca, sa = math.cos(ang), math.sin(ang)
-                    for rad in probe:
-                        if solid_local(lx + rad * ca, ly + rad * sa):
-                            if hit_r is None or rad < hit_r:
-                                hit_r = rad
-                if hit_r is not None:
-                    d = hit_r - PIN_R
-                else:
-                    found = None
-                    for rad in (PIN_R + 0.25, PIN_R + 0.5, PIN_R + 0.8, PIN_R + 1.2, PIN_R + 1.8, PIN_R + 2.5):
-                        hit = False
-                        for s in range(12):
-                            ang = 2.0 * math.pi * s / 12
-                            if solid_local(lx + rad * math.cos(ang), ly + rad * math.sin(ang)):
-                                hit = True
-                                break
-                        if hit:
-                            found = rad
-                            break
-                    d = (found - PIN_R) if found is not None else 2.5
+                d = _min_edge_dist(xy[0], xy[1], poly)
+                if _point_in_poly(xy[0], xy[1], poly):
+                    d = -d
+                d -= PIN_R
                 if d < min_d:
                     min_d = d
                     worst = (kind, j, i, round(d, 3))
@@ -410,7 +510,7 @@ def pin_blade_clearance(theta: float) -> dict:
     return {"min_clear": min_d, "worst": worst, "n_collide": n_collide}
 
 
-def aperture_radius(theta: float, samples: int = 180) -> float:
+def aperture_radius(theta, samples=180):
     polys = [blade_world(i, theta) for i in range(N)]
     hit = R_WINDOW
     for s in range(samples):
@@ -434,7 +534,7 @@ def aperture_radius(theta: float, samples: int = 180) -> float:
     return hit
 
 
-def validate() -> list[str]:
+def validate():
     notes = []
     prev = 0.0
     for t in (0.0, 0.25, 0.5, 0.75, 1.0):
@@ -446,46 +546,25 @@ def validate() -> list[str]:
         notes.append(
             "t=%.2f pin=(%.2f,%.2f) sep=%.2f Ø=%.1f φ=%.1f gaps=%d outer=%d pin_hit=%d clr=%.2f ok=%s"
             % (
-                t,
-                lx,
-                ly,
-                pin_sep(th),
-                d,
-                math.degrees(blade_angle(0, th)),
+                t, lx, ly, pin_sep(th), d, math.degrees(blade_angle(0, th)),
                 coverage_gaps(th),
                 outer_coverage_gaps(th) if t < 0.05 else -1,
-                pc["n_collide"],
-                pc["min_clear"],
-                ok,
+                pc["n_collide"], pc["min_clear"], ok,
             )
         )
         if t > 0 and d + 0.6 < prev:
             notes.append("  WARN aperture shrank")
         prev = d
     notes.append(
-        "blade_pts=%d area=%.1f pin_cuts=%d slot=%.1f->%.1f"
-        % (len(BLADE_POLY), _area(BLADE_POLY), len(PIN_CUTS), SLOT_IN, SLOT_OUT)
+        "blade_pts=%d area=%.1f slot=%.1f->%.1f"
+        % (len(BLADE_POLY), _area(BLADE_POLY), SLOT_IN, SLOT_OUT)
     )
     bot, top = pack_envelope()
     notes.append("pack_z %.2f -> %.2f weave_amp=%.2f" % (bot, top, WEAVE_AMP))
-    for t in (0.0, 0.5, 1.0):
-        th = rotor_angle(t)
-        sc = solid_clearance(th)
-        notes.append(
-            "solid t=%.2f hits=%d stacked=%d collide=%d min_clr=%s ok=%s"
-            % (
-                t,
-                sc["hits"],
-                sc["good_stack_hits"],
-                sc["same_side_hits"],
-                ("%.3f" % sc["min_clearance"]) if sc["min_clearance"] is not None else "n/a",
-                sc["ok"],
-            )
-        )
     return notes
 
 
-def kinematics_json() -> dict:
+def kinematics_json():
     return {
         "n": N,
         "rPivot": R_PIVOT,
@@ -497,7 +576,6 @@ def kinematics_json() -> dict:
         "thetaOpen": THETA_OPEN,
         "blade": BLADE_POLY,
         "slotArm": SLOT_ARM_POLY,
-        "pinCuts": [(round(x, 3), round(y, 3), round(r, 3)) for x, y, r in PIN_CUTS],
         "pinR": PIN_R,
         "bossR": BOSS_R,
         "slotIn": SLOT_IN,
@@ -532,46 +610,33 @@ def render_preview(path: Path, t: float, title: str) -> None:
 
     draw.ellipse([xy(-R_OUTER, R_OUTER), xy(R_OUTER, -R_OUTER)], outline=(138, 148, 161, 255), width=6)
     draw.ellipse([xy(-R_WINDOW, R_WINDOW), xy(R_WINDOW, -R_WINDOW)], outline=(183, 192, 202, 160), width=2)
-    colors = [
-        (158, 168, 180, 210),
-        (136, 146, 158, 210),
-        (118, 128, 140, 210),
-        (104, 114, 126, 210),
-    ]
+    colors = [(158, 168, 180, 210), (136, 146, 158, 210), (118, 128, 140, 210), (104, 114, 126, 210)]
     for i in range(N):
         pts = [xy(*p) for p in blade_world(i, theta)]
         if len(pts) > 3:
             draw.polygon(pts, fill=colors[i % len(colors)], outline=(40, 48, 58, 255))
-        # Show keep-out holes on blade 0 for debugging.
-        if i == 0:
-            for cx_, cy_, r in PIN_CUTS:
-                wx, wy = local_to_world(cx_, cy_, i, theta)
-                q = xy(wx, wy)
-                pr = r * scale
-                draw.ellipse([q[0] - pr, q[1] - pr, q[0] + pr, q[1] + pr], outline=(160, 60, 60, 100), width=1)
         px, py = pivot_xy(i)
         dx, dy = drive_xy(i, theta)
         pr = 2.05 * scale / 2
         for x, y, col in ((px, py, (201, 162, 39, 255)), (dx, dy, (196, 138, 0, 255))):
             q = xy(x, y)
             draw.ellipse([q[0] - pr, q[1] - pr, q[0] + pr, q[1] + pr], fill=col)
-
     r = aperture_radius(theta)
     draw.ellipse([xy(-r, r), xy(r, -r)], outline=(10, 142, 163, 255), width=3)
     try:
         font = ImageFont.load_default()
     except Exception:
         font = None
-    outer = outer_coverage_gaps(theta) if t < 0.05 else -1
+    pc = pin_blade_clearance(theta)
     draw.text(
         (22, 18),
-        "%s  t=%.2f  Ø%.1f mm  gaps=%d outer=%d" % (title, t, 2 * r, coverage_gaps(theta), outer),
+        "%s  t=%.2f  Ø%.1f  pin_hit=%d clr=%.2f" % (title, t, 2 * r, pc["n_collide"], pc["min_clear"]),
         fill=(18, 32, 51, 255),
         font=font,
     )
     path.parent.mkdir(parents=True, exist_ok=True)
     img.save(path)
-    print("wrote", path, "Ø", round(2 * r, 2), "gaps", coverage_gaps(theta), "outer", outer)
+    print("wrote", path, "Ø", round(2 * r, 2), "pin_hit", pc["n_collide"], "clr", round(pc["min_clear"], 3))
 
 
 def main() -> None:
