@@ -8,8 +8,8 @@ const IRIS = {
   rDrive: 40,
   thetaClosed: THREE.MathUtils.degToRad(10),
   thetaOpen: THREE.MathUtils.degToRad(40),
-  bladeZ: 4.4,
-  bladePitch: 0.22,
+  bladeZ: 3.9,
+  bladePitch: 0.11,
   bladeTilt: 0,
 };
 
@@ -195,7 +195,7 @@ function highlight(id) {
     "iris-stator": "Stator cup — 12 pivot pins, wall captures the pack",
     "iris-rotor": "Drive ring — 12 pins in blade slots",
     "iris-cover": "Retaining cover — holds leaves in the cup",
-    "iris-blade": "12 non-crossing blades — Ø7.2 → Ø33.4 mm",
+    "iris-blade": "12 near-coplanar blades — Ø7.2 → Ø33.4 mm",
   };
   hint.textContent = labels[id] || (state.mode === "iris" ? "Drag to orbit · iris is dilating" : "Drag to orbit · click a part");
 }

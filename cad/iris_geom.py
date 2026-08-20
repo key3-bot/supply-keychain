@@ -22,13 +22,13 @@ R_WINDOW = 34.0
 R_OUTER = 48.0
 R_BLADE_OUTER = 43.0
 R_CLOSED = 3.6
-BLADE_THICK = 0.16
-BLADE_PITCH = 0.22
+BLADE_THICK = 0.08
+BLADE_PITCH = 0.11
 BLADE_TILT = 0.0
-# Flat leaves. Tiny Z pitch (0.22) > thickness (0.16) => no solid intersections.
-# Rigid tilt removed because planar leans cut through neighbors.
+# Flat leaves, visually one level. Pitch 0.11 > thick 0.08 => no solid intersections.
+# True same-Z is impossible where leaves overlap in XY.
 WEAVE_AMP = 0.0
-BLADE_Z0 = 4.40
+BLADE_Z0 = 3.90
 RING_THICK = 1.8
 COVER_THICK = 1.8
 PIN_R = 1.05
