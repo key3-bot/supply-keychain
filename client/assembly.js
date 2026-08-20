@@ -10,22 +10,26 @@ const IRIS = {
   thetaOpen: THREE.MathUtils.degToRad(40),
   bladeZ: 3.9,
   bladePitch: 0.11,
-  bladeTilt: 0,
 };
 
-// Pristine pendulum kinematics (mm, CAD Z-up). Angle 0 = hanging down.
+/** Fitted pendulum (mm, CAD Z-up). Angle 0 = hang down. */
 const PEND = {
-  shoulder: { x: 0, y: 0, z: 54 },
-  cartTop: 46,
-  cartZ0: 14,
-  cartL: 96,
-  link1L: 180,
-  link2L: 120,
-  travelAmp: 55,
-  shoulderAmp: THREE.MathUtils.degToRad(38),
-  elbowAmp: THREE.MathUtils.degToRad(48),
-  shoulderBias: THREE.MathUtils.degToRad(8),
-  elbowBias: THREE.MathUtils.degToRad(-22),
+  shoulder: { x: 0, y: 0, z: 66 }, // CART_TOP(50)+16
+  cartTop: 50,
+  cartZ0: 16,
+  cartL: 110,
+  link1L: 170,
+  link2L: 115,
+  shoulderHubW: 14,
+  elbowHubW: 12,
+  cheekT: 7,
+  travelAmp: 70,
+  shoulderAmp: THREE.MathUtils.degToRad(42),
+  elbowAmp: THREE.MathUtils.degToRad(55),
+  shoulderBias: THREE.MathUtils.degToRad(10),
+  elbowBias: THREE.MathUtils.degToRad(-28),
+  // encoder board offset along −Y from joint origin
+  asY: (hubW) => -(hubW / 2 + 7 + 6),
 };
 
 const root = document.getElementById("cad-root");
@@ -42,7 +46,7 @@ const modeBtns = [...document.querySelectorAll(".cad-mode")];
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0xf3f6fb);
 
-const camera = new THREE.PerspectiveCamera(42, 1, 1, 2000);
+const camera = new THREE.PerspectiveCamera(40, 1, 0.5, 8000);
 const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 renderer.shadowMap.enabled = true;
@@ -50,22 +54,29 @@ root.appendChild(renderer.domElement);
 
 const controls = new OrbitControls(camera, renderer.domElement);
 controls.enableDamping = true;
-controls.maxPolarAngle = Math.PI * 0.495;
+controls.maxPolarAngle = Math.PI * 0.98;
+controls.minDistance = 40;
+controls.maxDistance = 1200;
 
-scene.add(new THREE.AmbientLight(0xffffff, 0.72));
+scene.add(new THREE.AmbientLight(0xffffff, 0.7));
 const key = new THREE.DirectionalLight(0xfff4d6, 1.05);
-key.position.set(180, 260, 140);
+key.position.set(200, 280, 160);
 key.castShadow = true;
+key.shadow.mapSize.set(2048, 2048);
 scene.add(key);
-const fill = new THREE.DirectionalLight(0xb9e8ef, 0.45);
-fill.position.set(-160, 80, -120);
+const fill = new THREE.DirectionalLight(0xb9e8ef, 0.48);
+fill.position.set(-180, 90, -140);
 scene.add(fill);
+const rim = new THREE.DirectionalLight(0xffffff, 0.25);
+rim.position.set(40, -120, 80);
+scene.add(rim);
 
 const ground = new THREE.Mesh(
-  new THREE.CircleGeometry(480, 64),
-  new THREE.ShadowMaterial({ opacity: 0.12 })
+  new THREE.CircleGeometry(700, 72),
+  new THREE.ShadowMaterial({ opacity: 0.14 })
 );
 ground.rotation.x = -Math.PI / 2;
+ground.position.y = -320;
 ground.receiveShadow = true;
 scene.add(ground);
 
@@ -74,17 +85,15 @@ function metal(color, extra = {}) {
 }
 
 const mats = {
-  rail: metal(0x9aa7b5),
-  cart: metal(0xd8dee8),
-  alu: metal(0x7f8b99),
-  alu2: metal(0xa3adb8),
-  gold: metal(0xc9a227),
-  steel: metal(0x6e7680, { roughness: 0.28, metalness: 0.85 }),
-  wire: new THREE.MeshStandardMaterial({ color: 0x1a1a1a, roughness: 0.7, metalness: 0.15 }),
-  tip: metal(0xb83a2f, { roughness: 0.35, metalness: 0.55 }),
-  pcb: new THREE.MeshStandardMaterial({ color: 0x1f7a3a, roughness: 0.45, metalness: 0.12 }),
-  pcb2: new THREE.MeshStandardMaterial({ color: 0x163024, roughness: 0.5, metalness: 0.08 }),
-  plastic: new THREE.MeshStandardMaterial({ color: 0x2b2b2b, roughness: 0.4, metalness: 0.15 }),
+  rail: metal(0x8e9aa8, { roughness: 0.4, metalness: 0.65 }),
+  cart: metal(0xdde3ec, { roughness: 0.35, metalness: 0.55 }),
+  link1: metal(0x7a8796, { roughness: 0.28, metalness: 0.82 }),
+  link2: metal(0x9a7358, { roughness: 0.34, metalness: 0.7 }),
+  joint: metal(0x5c636b, { roughness: 0.25, metalness: 0.9 }),
+  gold: metal(0xc9a227, { roughness: 0.3, metalness: 0.85 }),
+  pcb: new THREE.MeshStandardMaterial({ color: 0x1a7a38, roughness: 0.45, metalness: 0.12 }),
+  pcb2: new THREE.MeshStandardMaterial({ color: 0x143024, roughness: 0.5, metalness: 0.08 }),
+  plastic: new THREE.MeshStandardMaterial({ color: 0x222222, roughness: 0.42, metalness: 0.18 }),
   stator: metal(0x3a414a, { roughness: 0.38, metalness: 0.78 }),
   rotor: metal(0xc9a227, { roughness: 0.28, metalness: 0.82 }),
   cover: new THREE.MeshStandardMaterial({
@@ -126,7 +135,7 @@ function loadStl(url, material) {
   });
 }
 
-/** CAD Z-up (x,y,z) → Three Y-up (x,z,-y) */
+/** CAD Z-up (x,y,z) → Three Y-up (x, z, −y) */
 function cadToThree(x, y, z = 0) {
   return new THREE.Vector3(x, z, -y);
 }
@@ -138,17 +147,18 @@ function clearParts() {
   state.pend = null;
 }
 
-function addPart(id, obj, home, explodeDir) {
+function addRoot(id, obj, home, explodeDir) {
   obj.userData = {
     id,
     home: home.clone(),
     explodeDir: explodeDir.clone(),
-    basePos: obj.position.clone(),
   };
+  obj.position.copy(home);
   obj.traverse((child) => {
     if (child.isMesh) {
       child.castShadow = true;
       child.receiveShadow = true;
+      if (!child.userData.id) child.userData.id = id;
     }
   });
   scene.add(obj);
@@ -156,15 +166,16 @@ function addPart(id, obj, home, explodeDir) {
   return obj;
 }
 
-function markPickable(root, id) {
-  root.userData.id = id;
-  root.traverse((c) => {
+function tag(obj, id) {
+  obj.userData.id = id;
+  obj.traverse((c) => {
     if (c.isMesh) c.userData.id = id;
   });
+  return obj;
 }
 
+/** STL is CAD Z-up → apply Rx(−90) so CAD +Z becomes Three +Y. */
 function cadMesh(mesh) {
-  // STL is CAD Z-up. Rx(-90) → Three Y-up.
   mesh.rotation.x = -Math.PI / 2;
   return mesh;
 }
@@ -188,9 +199,11 @@ function setIrisPose(t) {
   const theta = rotorAngle(t);
   iris.blades.forEach((blade, i) => {
     const a = (i * Math.PI * 2) / IRIS.n;
-    const px = IRIS.rPivot * Math.cos(a);
-    const py = IRIS.rPivot * Math.sin(a);
-    const home = cadToThree(px, py, IRIS.bladeZ + i * IRIS.bladePitch);
+    const home = cadToThree(
+      IRIS.rPivot * Math.cos(a),
+      IRIS.rPivot * Math.sin(a),
+      IRIS.bladeZ + i * IRIS.bladePitch
+    );
     blade.userData.home.copy(home);
     blade.position.copy(home).addScaledVector(blade.userData.explodeDir, state.explode);
     blade.rotation.set(0, bladeAngle(i, theta), 0);
@@ -198,41 +211,47 @@ function setIrisPose(t) {
   if (iris.rotor) iris.rotor.rotation.y = theta - IRIS.thetaClosed;
 }
 
-function pendulumAngles(t) {
-  // Smooth swing + cart travel. t in [0,1] or free-running phase via sin.
-  const phase = t * Math.PI * 2;
+/**
+ * Pendulum FK.
+ * After cadMesh Rx(−90): mesh local +Z (link length) → group +Y.
+ * Angle 0 hang down = group rot.z = π so +Y points world −Y.
+ * Joint axis CAD +Y → after Rx(−90) is world −Z; we rotate about group Z
+ * which is CAD Y after the mesh conversion when pivots are empty Groups
+ * without the Rx — empty Groups keep identity, meshes inside have Rx.
+ *
+ * Hierarchy:
+ *   cartRoot (translate X)
+ *     shoulder (at shoulder CAD point)  rot.z = π + shoulderAngle
+ *       shoulderJoint, asA, link1
+ *       elbow (at local 0, link1L, 0)   rot.z = elbowAngle
+ *         elbowJoint, asB, link2
+ */
+function pendulumAngles(phase) {
   const travel = PEND.travelAmp * Math.sin(phase * 0.85);
   const shoulder = PEND.shoulderBias + PEND.shoulderAmp * Math.sin(phase);
-  const elbow = PEND.elbowBias + PEND.elbowAmp * Math.sin(phase * 1.35 + 0.4);
+  const elbow = PEND.elbowBias + PEND.elbowAmp * Math.sin(phase * 1.32 + 0.35);
   return { travel, shoulder, elbow };
 }
 
-function setPendulumPose(t) {
+function setPendulumPose(phase) {
   const pend = state.pend;
   if (!pend) return;
-  const { travel, shoulder, elbow } = pendulumAngles(t);
+  const { travel, shoulder, elbow } = pendulumAngles(phase);
   const ex = state.explode;
 
-  // Cart slides on rail (Three X).
   pend.cartRoot.position.set(travel, 0, 0);
   pend.cartRoot.position.addScaledVector(pend.cartExplode, ex);
 
-  // Shoulder above cart. CAD joint axis = Y → Three -Z after Rx(-90).
-  // Hang map: mesh CAD +Z becomes group +Y after Rx(-90); rot.z = PI + a sends +Y to hang dir.
-  pend.shoulder.position.copy(cadToThree(PEND.shoulder.x, PEND.shoulder.y, PEND.shoulder.z));
+  // Shoulder in cart frame (CAD → Three)
+  const sh = cadToThree(PEND.shoulder.x, PEND.shoulder.y, PEND.shoulder.z);
+  pend.shoulder.position.copy(sh);
   pend.shoulder.position.addScaledVector(pend.shoulderExplode, ex);
+  // Hang: mesh +Y (after Rx-90 from CAD +Z) → world −Y via rot.z = π + a
   pend.shoulder.rotation.set(0, 0, Math.PI + shoulder);
 
-  // Elbow is relative bend at end of link1 (local +Y after convert = distal).
   pend.elbow.position.set(0, PEND.link1L, 0);
   pend.elbow.position.addScaledVector(pend.elbowExplode, ex);
   pend.elbow.rotation.set(0, 0, elbow);
-
-  // Static wiring follows cart a bit
-  if (pend.wiring) {
-    pend.wiring.position.set(travel * 0.35, 0, 0);
-    pend.wiring.position.addScaledVector(pend.wiringExplode, ex);
-  }
 }
 
 function setExplode(t) {
@@ -243,7 +262,13 @@ function setExplode(t) {
     });
     setIrisPose(state.aperture);
   } else if (state.mode === "pendulum") {
-    setPendulumPose(state.swing);
+    // Non-articulated roots (rail) explode; articulated via setPendulumPose
+    if (state.pend?.rail) {
+      state.pend.rail.position
+        .copy(state.pend.rail.userData.home)
+        .addScaledVector(state.pend.rail.userData.explodeDir, t);
+    }
+    setPendulumPose(state._phase || 0);
   }
 }
 
@@ -257,7 +282,8 @@ function highlight(id) {
   state.parts.forEach((p) => {
     p.traverse((child) => {
       if (child.material && child.material.emissive) {
-        const on = p.userData.id === id && id !== "frame" && id !== "wiring";
+        const cid = child.userData.id || p.userData.id;
+        const on = cid === id && id !== "frame";
         child.material.emissive = new THREE.Color(on ? 0xc48a00 : 0x000000);
         child.material.emissiveIntensity = on ? 0.28 : 0;
       }
@@ -265,14 +291,12 @@ function highlight(id) {
   });
   if (!hint) return;
   const labels = {
-    "teensy-4.1": "Teensy 4.1 — on cart deck",
-    "slip-ring-12-wire": "SRC012-12 slip ring — Ø12.4 × 19.5 mm at joint",
+    "teensy-4.1": "Teensy 4.1 — cart deck controller",
     as5047p: "AS5047P — absolute joint encoder + magnet",
     "amt102-v": "AMT102-V — cart travel encoder",
-    frame: "Rail / cart / hollow links / tip mass",
-    "shoulder-joint": "Shoulder joint — 608 bearings, Ø8 shaft, collar",
-    "elbow-joint": "Elbow joint — 608 bearings, Ø8 shaft, slip ring",
-    wiring: "Harness loom (static rest-pose guide)",
+    frame: "Rail / cart / fitted links",
+    "shoulder-joint": "Shoulder — 608s in cart cheeks, hub in the gap, slip ring + magnet",
+    "elbow-joint": "Elbow — 608s in link1 clevis, link2 hub seated in the fork",
     "iris-stator": "Stator cup — 12 pivot pins",
     "iris-rotor": "Drive ring — 12 pins in blade slots",
     "iris-cover": "Retaining cover",
@@ -281,7 +305,7 @@ function highlight(id) {
   const idle =
     state.mode === "iris"
       ? "Drag to orbit · iris is dilating"
-      : "Drag to orbit · pendulum swinging · click a part";
+      : "Drag to orbit · fitted joints · live swing";
   hint.textContent = labels[id] || idle;
 }
 
@@ -291,208 +315,119 @@ function frameIris() {
 }
 
 function framePendulum() {
-  // Cart near y~50, hang down toward y~-150
-  camera.position.set(280, 160, 320);
-  controls.target.set(0, -20, 0);
+  // Full hang: shoulder ~y66, tip ~ y66-285 ≈ -220
+  camera.position.set(340, 90, 380);
+  controls.target.set(0, -70, 0);
+  controls.update();
 }
 
 async function buildPendulum() {
   clearParts();
+
+  const urls = {
+    rail: "cad/rail.stl",
+    cart: "cad/cart.stl",
+    link1: "cad/link1.stl",
+    link2: "cad/link2.stl",
+    shoulder: "cad/shoulder-joint.stl",
+    elbow: "cad/elbow-joint.stl",
+    as5047p: "cad/as5047p.stl",
+    amt: "cad/amt102-v.stl",
+    teensy: "cad/teensy-4.1.stl",
+  };
 
   const [
     railM,
     cartM,
     link1M,
     link2M,
-    tipM,
     shoulderM,
     elbowM,
-    slipA,
-    slipB,
-    asA,
-    asB,
+    asM,
     amtM,
     teensyM,
-    wireM,
   ] = await Promise.all([
-    loadStl("cad/rail.stl", mats.rail.clone()),
-    loadStl("cad/cart.stl", mats.cart.clone()),
-    loadStl("cad/link1.stl", mats.alu.clone()),
-    loadStl("cad/link2.stl", mats.alu2.clone()),
-    loadStl("cad/tip-mass.stl", mats.tip.clone()),
-    loadStl("cad/shoulder-joint.stl", mats.steel.clone()),
-    loadStl("cad/elbow-joint.stl", mats.steel.clone()),
-    loadStl("cad/slip-ring-12-wire-a.stl", mats.gold.clone()),
-    loadStl("cad/slip-ring-12-wire-b.stl", mats.gold.clone()),
-    loadStl("cad/as5047p-a.stl", mats.pcb2.clone()),
-    loadStl("cad/as5047p-b.stl", mats.pcb2.clone()),
-    loadStl("cad/amt102-v.stl", mats.plastic.clone()),
-    loadStl("cad/teensy-4.1.stl", mats.pcb.clone()).catch(() =>
-      loadStl("cad/teensy-4.1-step.stl", mats.pcb.clone())
-    ),
-    loadStl("cad/wiring.stl", mats.wire.clone()),
+    loadStl(urls.rail, mats.rail.clone()),
+    loadStl(urls.cart, mats.cart.clone()),
+    loadStl(urls.link1, mats.link1.clone()),
+    loadStl(urls.link2, mats.link2.clone()),
+    loadStl(urls.shoulder, mats.joint.clone()),
+    loadStl(urls.elbow, mats.joint.clone()),
+    loadStl(urls.as5047p, mats.pcb2.clone()),
+    loadStl(urls.amt, mats.plastic.clone()),
+    loadStl(urls.teensy, mats.pcb.clone()),
   ]);
 
-  // --- static rail ---
-  const rail = cadMesh(railM);
-  addPart("frame", rail, new THREE.Vector3(0, 0, 0), new THREE.Vector3(0, -20, 0));
+  // Static rail
+  const rail = tag(cadMesh(railM), "frame");
+  addRoot("frame", rail, new THREE.Vector3(0, 0, 0), new THREE.Vector3(0, -24, 0));
 
-  // --- cart root (travels in X) ---
+  // Cart root (travels)
   const cartRoot = new THREE.Group();
-  const cart = cadMesh(cartM);
+  tag(cartRoot, "frame");
+
+  const cart = tag(cadMesh(cartM), "frame");
   cartRoot.add(cart);
 
-  const teensy = cadMesh(teensyM);
-  // Local teensy sits on deck: CAD (18,0,CART_TOP+4) → after parent cart at 0
-  teensy.position.copy(cadToThree(18, 0, PEND.cartTop + 4));
+  const teensy = tag(cadMesh(teensyM), "teensy-4.1");
+  teensy.position.copy(cadToThree(28, 0, PEND.cartTop + 5));
   cartRoot.add(teensy);
-  markPickable(teensy, "teensy-4.1");
 
-  const amt = cadMesh(amtM);
-  amt.position.copy(cadToThree(-PEND.cartL / 2 - 6, 18, PEND.cartZ0 + 18));
+  const amt = tag(cadMesh(amtM), "amt102-v");
+  amt.position.copy(cadToThree(-PEND.cartL / 2 - 4, 20, PEND.cartZ0 + 20));
   cartRoot.add(amt);
-  markPickable(amt, "amt102-v");
 
-  // Shoulder pivot on cart
+  // Shoulder pivot group
   const shoulder = new THREE.Group();
-  const shoulderJoint = cadMesh(shoulderM);
+  tag(shoulder, "shoulder-joint");
+
+  const shoulderJoint = tag(cadMesh(shoulderM), "shoulder-joint");
   shoulder.add(shoulderJoint);
-  markPickable(shoulderJoint, "shoulder-joint");
 
-  const slipRingA = cadMesh(slipA);
-  // local slip is on Y; offset to +Y side of joint
-  slipRingA.position.copy(cadToThree(0, 16, 0));
-  shoulder.add(slipRingA);
-  markPickable(slipRingA, "slip-ring-12-wire");
+  const asA = tag(cadMesh(asM.clone()), "as5047p");
+  asA.position.copy(cadToThree(0, PEND.asY(PEND.shoulderHubW), 0));
+  shoulder.add(asA);
 
-  const encA = cadMesh(asA);
-  encA.position.copy(cadToThree(0, -18, 0));
-  shoulder.add(encA);
-  markPickable(encA, "as5047p");
-
-  // Link1 hangs from shoulder (mesh CAD +Z → group +Y via Rx-90; rot.z flips to hang)
-  const link1 = cadMesh(link1M);
+  const link1 = tag(cadMesh(link1M), "frame");
   shoulder.add(link1);
-  markPickable(link1, "frame");
 
-  // Elbow at distal end of link1 (local +Y = CAD +Z after convert)
+  // Elbow pivot at distal end of link1 (local +Y after convert = CAD +Z)
   const elbow = new THREE.Group();
+  tag(elbow, "elbow-joint");
   elbow.position.set(0, PEND.link1L, 0);
   shoulder.add(elbow);
 
-  const elbowJoint = cadMesh(elbowM);
+  const elbowJoint = tag(cadMesh(elbowM), "elbow-joint");
   elbow.add(elbowJoint);
-  markPickable(elbowJoint, "elbow-joint");
 
-  const slipRingB = cadMesh(slipB);
-  slipRingB.position.copy(cadToThree(0, 16, 0));
-  elbow.add(slipRingB);
-  markPickable(slipRingB, "slip-ring-12-wire");
+  const asB = tag(cadMesh(asM.clone()), "as5047p");
+  asB.position.copy(cadToThree(0, PEND.asY(PEND.elbowHubW), 0));
+  elbow.add(asB);
 
-  const encB = cadMesh(asB);
-  encB.position.copy(cadToThree(0, -18, 0));
-  elbow.add(encB);
-  markPickable(encB, "as5047p");
-
-  const link2 = cadMesh(link2M);
+  const link2 = tag(cadMesh(link2M), "frame");
   elbow.add(link2);
-  markPickable(link2, "frame");
-
-  const tip = cadMesh(tipM);
-  elbow.add(tip);
-  markPickable(tip, "frame");
 
   cartRoot.add(shoulder);
-  addPart("frame", cartRoot, new THREE.Vector3(0, 0, 0), new THREE.Vector3(0, 12, 0));
-  // Register pickable children with catalog ids
-  addPart("teensy-4.1", teensy, teensy.position.clone(), new THREE.Vector3(40, 30, 10));
-  addPart("amt102-v", amt, amt.position.clone(), new THREE.Vector3(-60, 20, 20));
-  addPart("shoulder-joint", shoulderJoint, new THREE.Vector3(0, 0, 0), new THREE.Vector3(-20, 25, 20));
-  addPart("elbow-joint", elbowJoint, new THREE.Vector3(0, 0, 0), new THREE.Vector3(30, -40, -20));
-  addPart("slip-ring-12-wire", slipRingA, new THREE.Vector3(0, 0, 0), new THREE.Vector3(-30, 20, 15));
-  addPart("slip-ring-12-wire", slipRingB, new THREE.Vector3(0, 0, 0), new THREE.Vector3(40, -30, -15));
-  addPart("as5047p", encA, new THREE.Vector3(0, 0, 0), new THREE.Vector3(-35, -20, 10));
-  addPart("as5047p", encB, new THREE.Vector3(0, 0, 0), new THREE.Vector3(45, -45, -20));
+  addRoot("frame", cartRoot, new THREE.Vector3(0, 0, 0), new THREE.Vector3(0, 14, 0));
 
-  // Rest-pose wiring guide (world-baked); only drifts with cart a little
-  const wiring = cadMesh(wireM);
-  addPart("wiring", wiring, new THREE.Vector3(0, 0, 0), new THREE.Vector3(20, -15, -30));
+  // Register pickable leaves for highlight (still parented under cartRoot)
+  state.parts.push(teensy, amt, shoulderJoint, elbowJoint, asA, asB, link1, link2);
 
   state.pend = {
+    rail,
     cartRoot,
     shoulder,
     elbow,
-    wiring,
-    cartExplode: new THREE.Vector3(0, 12, 0),
-    shoulderExplode: new THREE.Vector3(-15, 20, 25),
-    elbowExplode: new THREE.Vector3(25, -35, -20),
-    wiringExplode: new THREE.Vector3(20, -15, -30),
+    cartExplode: new THREE.Vector3(0, 14, 0),
+    shoulderExplode: new THREE.Vector3(-18, 22, 28),
+    elbowExplode: new THREE.Vector3(28, -40, -22),
   };
 
-  // Remove duplicate top-level addPart side effects on nested meshes' homes —
-  // nested parts stay parented; explode is handled in setPendulumPose.
-  state.parts = state.parts.filter((p) => {
-    // keep only scene roots we added via scene.add in addPart
-    return p.parent === scene;
-  });
-  // Re-add nested pick targets without reparenting — they're already under cartRoot
-  // Ensure cartRoot is the only articulated root besides rail/wiring
-  // (teensy etc. were addPart'd which scene.add'd them — fix by reparenting)
-  [teensy, amt, shoulderJoint, elbowJoint, slipRingA, slipRingB, encA, encB].forEach((m) => {
-    // if addPart stole them to scene, put back
-    if (m.parent === scene) {
-      // find intended parent
-    }
-  });
-
-  // Rebuild parenting cleanly: remove stolen nodes from scene roots list
-  // and ensure hierarchy is correct.
-  const ensureChild = (parent, child) => {
-    if (child.parent !== parent) parent.add(child);
-  };
-  ensureChild(cartRoot, cart);
-  ensureChild(cartRoot, teensy);
-  ensureChild(cartRoot, amt);
-  ensureChild(cartRoot, shoulder);
-  ensureChild(shoulder, shoulderJoint);
-  ensureChild(shoulder, slipRingA);
-  ensureChild(shoulder, encA);
-  ensureChild(shoulder, link1);
-  ensureChild(shoulder, elbow);
-  ensureChild(elbow, elbowJoint);
-  ensureChild(elbow, slipRingB);
-  ensureChild(elbow, encB);
-  ensureChild(elbow, link2);
-  ensureChild(elbow, tip);
-
-  // parts list for explode/highlight: rail, cartRoot, wiring + tagged meshes
-  state.parts = [rail, cartRoot, wiring, teensy, amt, shoulderJoint, elbowJoint, slipRingA, slipRingB, encA, encB, link1, link2, tip];
-  state.parts.forEach((p) => {
-    if (!p.userData.home) {
-      p.userData.home = p.position.clone();
-      p.userData.explodeDir = new THREE.Vector3(0, 0, 0);
-    }
-    if (!p.userData.id) p.userData.id = "frame";
-  });
-  teensy.userData.id = "teensy-4.1";
-  amt.userData.id = "amt102-v";
-  shoulderJoint.userData.id = "shoulder-joint";
-  elbowJoint.userData.id = "elbow-joint";
-  slipRingA.userData.id = "slip-ring-12-wire";
-  slipRingB.userData.id = "slip-ring-12-wire";
-  encA.userData.id = "as5047p";
-  encB.userData.id = "as5047p";
-  wiring.userData.id = "wiring";
-  rail.userData.id = "frame";
-  cartRoot.userData.id = "frame";
-  link1.userData.id = "frame";
-  link2.userData.id = "frame";
-  tip.userData.id = "frame";
-
-  setPendulumPose(state.swing);
+  state._phase = 0.2;
+  setPendulumPose(state._phase);
   framePendulum();
   highlight("shoulder-joint");
-  if (hint) hint.textContent = "Pendulum swinging · joints at the top of the hang";
+  if (hint) hint.textContent = "Fitted clevis joints · live swing · click a part";
   if (playBtn) playBtn.textContent = state.playing ? "Pause" : "Play";
 }
 
@@ -508,17 +443,17 @@ async function buildIris() {
   const stator = new THREE.Group();
   statorMesh.rotation.x = -Math.PI / 2;
   stator.add(statorMesh);
-  addPart("iris-stator", stator, new THREE.Vector3(0, 0, 0), new THREE.Vector3(0, -16, 0));
+  addRoot("iris-stator", stator, new THREE.Vector3(0, 0, 0), new THREE.Vector3(0, -16, 0));
 
   const rotor = new THREE.Group();
   rotorMesh.rotation.x = -Math.PI / 2;
   rotor.add(rotorMesh);
-  addPart("iris-rotor", rotor, new THREE.Vector3(0, 0, 0), new THREE.Vector3(0, 18, 0));
+  addRoot("iris-rotor", rotor, new THREE.Vector3(0, 0, 0), new THREE.Vector3(0, 18, 0));
 
   const cover = new THREE.Group();
   coverMesh.rotation.x = -Math.PI / 2;
   cover.add(coverMesh);
-  addPart("iris-cover", cover, new THREE.Vector3(0, 0, 0), new THREE.Vector3(0, 32, 0));
+  addRoot("iris-cover", cover, new THREE.Vector3(0, 0, 0), new THREE.Vector3(0, 32, 0));
 
   const blades = [];
   for (let i = 0; i < IRIS.n; i += 1) {
@@ -529,8 +464,12 @@ async function buildIris() {
     mesh.rotation.x = -Math.PI / 2;
     group.add(mesh);
     const a = (i * Math.PI * 2) / IRIS.n;
-    const home = cadToThree(IRIS.rPivot * Math.cos(a), IRIS.rPivot * Math.sin(a), IRIS.bladeZ + i * IRIS.bladePitch);
-    addPart("iris-blade", group, home, new THREE.Vector3(Math.cos(a) * 8, 10, -Math.sin(a) * 8));
+    const home = cadToThree(
+      IRIS.rPivot * Math.cos(a),
+      IRIS.rPivot * Math.sin(a),
+      IRIS.bladeZ + i * IRIS.bladePitch
+    );
+    addRoot("iris-blade", group, home, new THREE.Vector3(Math.cos(a) * 8, 10, -Math.sin(a) * 8));
     blades.push(group);
   }
 
@@ -540,7 +479,7 @@ async function buildIris() {
   );
   well.rotation.x = -Math.PI / 2;
   well.position.y = 0.4;
-  addPart("iris-stator", well, new THREE.Vector3(0, 0.4, 0), new THREE.Vector3(0, -16, 0));
+  addRoot("iris-stator", well, new THREE.Vector3(0, 0.4, 0), new THREE.Vector3(0, -16, 0));
 
   state.iris = { blades, rotor, stator, cover };
   setIrisPose(state.aperture);
@@ -555,18 +494,13 @@ async function setMode(mode) {
   state.explode = 0;
   if (hint) hint.textContent = "Loading CAD…";
   try {
-    if (mode === "iris") {
-      state.playing = true;
-      if (playBtn) playBtn.textContent = "Pause";
-      await buildIris();
-    } else {
-      state.playing = true;
-      if (playBtn) playBtn.textContent = "Pause";
-      await buildPendulum();
-    }
+    state.playing = true;
+    if (playBtn) playBtn.textContent = "Pause";
+    if (mode === "iris") await buildIris();
+    else await buildPendulum();
   } catch (err) {
     console.error(err);
-    if (hint) hint.textContent = "CAD mesh load failed";
+    if (hint) hint.textContent = "CAD mesh load failed — hard-refresh?";
   }
 }
 
@@ -583,7 +517,7 @@ function pick(event) {
   let obj = hits[0].object;
   while (obj && !obj.userData.id) obj = obj.parent;
   const id = obj && obj.userData.id;
-  if (!id || id === "frame" || id === "wiring") return;
+  if (!id || id === "frame") return;
   highlight(id);
   if (typeof window.selectKey === "function" && state.mode === "pendulum") {
     const catalogId =
@@ -594,7 +528,7 @@ function pick(event) {
 
 function resize() {
   const w = root.clientWidth;
-  const h = Math.max(360, Math.round(w * 0.52));
+  const h = Math.max(420, Math.round(w * 0.58));
   camera.aspect = w / h;
   camera.updateProjectionMatrix();
   renderer.setSize(w, h);
@@ -613,8 +547,11 @@ if (swingInput) {
   swingInput.addEventListener("input", () => {
     state.playing = false;
     if (playBtn) playBtn.textContent = "Play";
-    state.swing = Number(swingInput.value);
-    setPendulumPose(state.swing);
+    const u = Number(swingInput.value);
+    state.swing = u;
+    // Map slider 0..1 → phase
+    state._phase = u * Math.PI * 2;
+    setPendulumPose(state._phase);
   });
 }
 playBtn.addEventListener("click", () => {
@@ -649,11 +586,11 @@ function tick() {
       if (apertureInput) apertureInput.value = String(u.toFixed(3));
       setIrisPose(u);
     } else if (state.mode === "pendulum" && state.pend) {
-      // continuous phase, also mirror onto slider 0..1
-      const u = 0.5 + 0.5 * Math.sin(t * 0.55);
+      state._phase = t * 0.85;
+      const u = 0.5 + 0.5 * Math.sin(state._phase);
       state.swing = u;
       if (swingInput) swingInput.value = String(u.toFixed(3));
-      setPendulumPose(t * 0.09); // free-running phase (not limited to 0..1)
+      setPendulumPose(state._phase);
     }
   }
   controls.update();
