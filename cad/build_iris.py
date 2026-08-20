@@ -6,8 +6,13 @@ import os
 import sys
 
 import FreeCAD as App
-import MeshPart
+import Mesh
 import Part
+
+try:
+    import MeshPart  # preferred when snap libs resolve
+except Exception:
+    MeshPart = None
 
 ROOT = os.environ.get("CAD_ROOT", "/home/node/supply-keychain/cad")
 sys.path.insert(0, ROOT)
@@ -29,14 +34,24 @@ def solid_to_obj(doc, name, shape, color):
 
 
 def mesh_export(shape, path, deflection=0.08):
-    mesh = MeshPart.meshFromShape(
-        Shape=shape,
-        LinearDeflection=deflection,
-        AngularDeflection=0.45,
-        Relative=False,
-    )
+    if MeshPart is not None:
+        try:
+            mesh = MeshPart.meshFromShape(
+                Shape=shape,
+                LinearDeflection=deflection,
+                AngularDeflection=0.45,
+                Relative=False,
+            )
+            mesh.write(path)
+            print("wrote", path, "facets", mesh.CountFacets)
+            return
+        except Exception as exc:
+            print("MeshPart failed, falling back to tessellate:", exc)
+    # Fallback path for environments where MeshPart cannot load (e.g. libcurl).
+    mesh = Mesh.Mesh()
+    mesh.addFacets(shape.tessellate(deflection))
     mesh.write(path)
-    print("wrote", path, "facets", mesh.CountFacets)
+    print("wrote", path, "facets", mesh.CountFacets, "(tessellate)")
 
 
 def face_from_poly(poly):
@@ -67,7 +82,35 @@ def blade_solid():
     )
     cap_a = Part.makeCylinder(G.SLOT_HALF, G.BLADE_THICK + 2, App.Vector(G.SLOT_IN, 0, -1))
     cap_b = Part.makeCylinder(G.SLOT_HALF, G.BLADE_THICK + 2, App.Vector(G.SLOT_OUT, 0, -1))
-    return body.cut(hole).cut(slot.fuse(cap_a).fuse(cap_b))
+    body = body.cut(hole).cut(slot.fuse(cap_a).fuse(cap_b))
+    # Foreign-pin keep-outs across the stroke. Decimate heavily — full 500+
+    # pairwise fuses hang FreeCAD; nearest-neighbor samples are enough for the mesh.
+    cuts = list(getattr(G, "PIN_CUTS", []) or [])
+    if cuts:
+        # Keep only cuts that actually hit the blade outline, quantized ~1.2 mm.
+        kept = []
+        seen = set()
+        for cx, cy, r in cuts:
+            key = (round(float(cx) / 1.2), round(float(cy) / 1.2))
+            if key in seen:
+                continue
+            if not G._point_in_poly(float(cx), float(cy), G.BLADE_POLY):
+                # still keep if disk overlaps outline bbox-ish near body
+                if abs(float(cy)) > 18 and abs(float(cx)) > 30:
+                    continue
+            seen.add(key)
+            kept.append((float(cx), float(cy), float(r)))
+        # Cap to keep boolean time sane.
+        if len(kept) > 80:
+            step = max(1, len(kept) // 80)
+            kept = kept[::step][:80]
+        print("blade pin keep-outs candidate", len(cuts), "using", len(kept))
+        for i, (cx, cy, r) in enumerate(kept):
+            cyl = Part.makeCylinder(r, G.BLADE_THICK + 2, App.Vector(cx, cy, -1))
+            body = body.cut(cyl)
+            if (i + 1) % 20 == 0:
+                print("  cut", i + 1, "/", len(kept))
+    return body
 
 
 def ring(od, id_, z0, thick):
