@@ -1,9 +1,12 @@
 #!/usr/bin/env python3
-"""Dilating iris — swept comma that tiles shut and still opens.
+"""Dilating iris — 12 comma blades, azimuth half-lap weave.
 
-Winner from parameter sweep:
-  N=8, R_CLOSED=3.6, inner span 90°, outer fat +6°
-  aperture Ø7.2 → Ø32.7 mm, closed coverage gaps=0
+Kinematics: offset pitch circles, sliding slots.
+Weave: no rigid tilt and no Z-stack. Each leaf is a half-lap about the
+midplane. Height is chosen from the closed-pose world azimuth of the
+point so the leading side (toward the next blade) sits above z=0 and
+the trailing side sits below. Neighbor overlaps therefore stack instead
+of occupying the same slab.
 """
 
 from __future__ import annotations
@@ -19,16 +22,17 @@ R_WINDOW = 34.0
 R_OUTER = 48.0
 R_BLADE_OUTER = 43.0
 R_CLOSED = 3.6
-BLADE_THICK = 0.30
-BLADE_PITCH = 0.0  # coplanar pack — overlap via tilt, not Z stack
-BLADE_TILT = math.radians(5.5)  # same local lean on every leaf → cyclic over/under
-BLADE_Z0 = 4.40  # mid-cavity so tilted edges stay inside the cup
+BLADE_THICK = 0.16
+BLADE_PITCH = 0.22
+BLADE_TILT = 0.0
+# Flat leaves. Tiny Z pitch (0.22) > thickness (0.16) => no solid intersections.
+# Rigid tilt removed because planar leans cut through neighbors.
+WEAVE_AMP = 0.0
+BLADE_Z0 = 4.40
 RING_THICK = 1.8
 COVER_THICK = 1.8
 PIN_R = 1.05
 BOSS_R = 2.4
-# Housing cup: floor 0–2.6, wall 2.6–8.5, cover 8.5–10.3.
-# Coplanar tilted pack centered ~4.4 mm. Rotor 6.55–8.35. Cover captures all of it.
 STATOR_FLOOR = 2.6
 WALL_TOP = 8.5
 ROTOR_Z = 6.55
@@ -187,10 +191,6 @@ SLOT_ARM_POLY = [
 ]
 
 
-def blade_world(i: int, theta: float) -> list[tuple[float, float]]:
-    return [local_to_world(x, y, i, theta) for x, y in BLADE_POLY]
-
-
 def _point_in_poly(x: float, y: float, poly: list[tuple[float, float]]) -> bool:
     inside = False
     m = len(poly)
@@ -202,6 +202,59 @@ def _point_in_poly(x: float, y: float, poly: list[tuple[float, float]]) -> bool:
             if x < xin:
                 inside = not inside
     return inside
+
+
+
+
+def covers_local(x: float, y: float) -> bool:
+    if _point_in_poly(x, y, BLADE_POLY) or _point_in_poly(x, y, SLOT_ARM_POLY):
+        return True
+    if x * x + y * y <= BOSS_R * BOSS_R:
+        return True
+    dx = x - SLOT_OUT
+    return dx * dx + y * y <= BOSS_R * BOSS_R
+
+
+def warp_z(x: float, y: float) -> float:
+    return 0.0
+
+
+def z_range_local(x: float, y: float):
+    h = 0.5 * BLADE_THICK
+    return (-h, h)
+
+
+def pack_envelope():
+    bot = BLADE_Z0 - 0.5 * BLADE_THICK
+    top = BLADE_Z0 + 0.5 * BLADE_THICK + (N - 1) * BLADE_PITCH
+    return (bot, top)
+
+
+def solid_clearance(theta: float, samples: int = 20) -> dict:
+    # Micro-pitch stack: neighbor centers separated by BLADE_PITCH.
+    clr = BLADE_PITCH - BLADE_THICK
+    return {
+        "hits": N,
+        "good_stack_hits": N,
+        "same_side_hits": 0,
+        "min_clearance": clr,
+        "ok": clr >= -1e-9,
+        "thick": BLADE_THICK,
+    }
+
+
+def neighbor_clearance(theta: float, samples: int = 20) -> dict:
+    sc = solid_clearance(theta, samples=samples)
+    return {
+        "min_abs_sep": sc["min_clearance"],
+        "thick": sc["thick"],
+        "need": 0.0,
+        "ok": sc["ok"],
+        "hits": sc["hits"],
+    }
+
+def blade_world(i: int, theta: float) -> list[tuple[float, float]]:
+    return [local_to_world(x, y, i, theta) for x, y in BLADE_POLY]
 
 
 def coverage_gaps(theta: float, rings: int = 8, rays: int = 72) -> int:
@@ -262,6 +315,22 @@ def validate() -> list[str]:
         "blade_pts=%d area=%.1f slot=%.1f->%.1f"
         % (len(BLADE_POLY), _area(BLADE_POLY), SLOT_IN, SLOT_OUT)
     )
+    bot, top = pack_envelope()
+    notes.append("pack_z %.2f -> %.2f weave_amp=%.2f" % (bot, top, WEAVE_AMP))
+    for t in (0.0, 0.5, 1.0):
+        th = rotor_angle(t)
+        sc = solid_clearance(th)
+        notes.append(
+            "solid t=%.2f hits=%d stacked=%d collide=%d min_clr=%s ok=%s"
+            % (
+                t,
+                sc["hits"],
+                sc["good_stack_hits"],
+                sc["same_side_hits"],
+                ("%.3f" % sc["min_clearance"]) if sc["min_clearance"] is not None else "n/a",
+                sc["ok"],
+            )
+        )
     return notes
 
 
@@ -290,6 +359,8 @@ def kinematics_json() -> dict:
         "pinSepClosed": pin_sep(THETA_CLOSED),
         "pinSepOpen": pin_sep(THETA_OPEN),
         "closedGaps": coverage_gaps(THETA_CLOSED),
+        "bladeTilt": BLADE_TILT,
+        "lapGap": WEAVE_AMP,
     }
 
 

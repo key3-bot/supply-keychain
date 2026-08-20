@@ -9,9 +9,8 @@ const IRIS = {
   thetaClosed: THREE.MathUtils.degToRad(10),
   thetaOpen: THREE.MathUtils.degToRad(40),
   bladeZ: 4.4,
-  bladePitch: 0,
-  // Same local lean on every leaf → cyclic over/under all the way around.
-  bladeTilt: THREE.MathUtils.degToRad(5.5),
+  bladePitch: 0.22,
+  bladeTilt: 0,
 };
 
 const root = document.getElementById("cad-root");
@@ -147,13 +146,12 @@ function setIrisPose(t) {
   if (!iris) return;
   const theta = rotorAngle(t);
   // FreeCAD Z rotation maps to Three.js +Y after the STL's Rx(-90°) convert.
-  // Coplanar pack: every leaf at the same Z, same local tilt about the slot axis
-  // so each blade weaves over the previous one around the full circle.
+  // Non-crossing pack: no rigid tilt. Tiny Z pitch keeps solids from intersecting.
   iris.blades.forEach((blade, i) => {
     const a = (i * Math.PI * 2) / IRIS.n;
     const px = IRIS.rPivot * Math.cos(a);
     const py = IRIS.rPivot * Math.sin(a);
-    const home = cadToThree(px, py, IRIS.bladeZ);
+    const home = cadToThree(px, py, IRIS.bladeZ + i * IRIS.bladePitch);
     blade.userData.home.copy(home);
     blade.position.copy(home).addScaledVector(blade.userData.explodeDir, state.explode);
     // Parent yaw aims +X at the drive pin. Child mesh is pre-tilted about CAD X.
@@ -197,7 +195,7 @@ function highlight(id) {
     "iris-stator": "Stator cup — 12 pivot pins, wall captures the pack",
     "iris-rotor": "Drive ring — 12 pins in blade slots",
     "iris-cover": "Retaining cover — holds leaves in the cup",
-    "iris-blade": "12 coplanar tilted blades — Ø7.2 → Ø33.4 mm",
+    "iris-blade": "12 non-crossing blades — Ø7.2 → Ø33.4 mm",
   };
   hint.textContent = labels[id] || (state.mode === "iris" ? "Drag to orbit · iris is dilating" : "Drag to orbit · click a part");
 }
@@ -267,10 +265,10 @@ async function buildIris() {
     mesh.material.color.offsetHSL(0, 0, (i % 3) * 0.03);
     // CAD Z-up → Three Y-up, then lean about the slot axis (CAD +X).
     // Same tilt on every leaf → continuous cyclic overlap around the ring.
-    mesh.rotation.x = -Math.PI / 2 + IRIS.bladeTilt;
+    mesh.rotation.x = -Math.PI / 2;
     group.add(mesh);
     const a = (i * Math.PI * 2) / IRIS.n;
-    const home = cadToThree(IRIS.rPivot * Math.cos(a), IRIS.rPivot * Math.sin(a), IRIS.bladeZ);
+    const home = cadToThree(IRIS.rPivot * Math.cos(a), IRIS.rPivot * Math.sin(a), IRIS.bladeZ + i * IRIS.bladePitch);
     addPart("iris-blade", group, home, new THREE.Vector3(Math.cos(a) * 8, 10, -Math.sin(a) * 8));
     blades.push(group);
   }
