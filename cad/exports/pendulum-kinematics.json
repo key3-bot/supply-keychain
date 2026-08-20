@@ -7,20 +7,23 @@
     "h": 16.0
   },
   "cart": {
-    "l": 110.0,
-    "w": 72.0,
-    "h": 34.0,
+    "l": 120.0,
+    "w": 70.0,
+    "h": 36.0,
     "z0": 16.0,
-    "top": 50.0
+    "top": 52.0
   },
   "shoulder": {
     "x": 0.0,
-    "y": 0.0,
-    "z": 66.0
+    "y": 57.0,
+    "z": 60.0
   },
-  "cheekT": 7.0,
-  "shoulderHubW": 14.0,
-  "elbowHubW": 12.0,
+  "sideBracket": 22.0,
+  "cheekT": 8.0,
+  "shoulderHubW": 16.0,
+  "elbowHubW": 14.0,
+  "cheekSpanShoulder": 32.0,
+  "cheekSpanElbow": 30.0,
   "shaftD": 8.0,
   "bearing": {
     "id": 8.0,
@@ -33,20 +36,21 @@
     "bore": 4.2
   },
   "link1": {
-    "l": 170.0,
-    "armR": 7.0,
-    "hubR": 13.0,
-    "hubW": 14.0,
-    "clevisGap": 12.4,
-    "clevisT": 5.5
+    "l": 160.0,
+    "armR": 8.0,
+    "hubR": 14.0,
+    "hubW": 16.0,
+    "clevisGap": 14.5,
+    "clevisT": 8.0,
+    "clevisR": 15.0
   },
   "link2": {
-    "l": 115.0,
-    "armR": 5.5,
-    "hubR": 11.0,
-    "hubW": 12.0,
-    "tipR": 10.0,
-    "tipH": 20.0
+    "l": 110.0,
+    "armR": 6.0,
+    "hubR": 12.0,
+    "hubW": 14.0,
+    "tipR": 11.0,
+    "tipH": 22.0
   },
   "as5047p": {
     "board": [
@@ -56,7 +60,7 @@
     ],
     "magnetD": 6.0,
     "magnetH": 2.5,
-    "y": -20.0
+    "yFromJoint": -23.0
   },
   "amt102": {
     "r": 15.5,
@@ -69,20 +73,26 @@
   ],
   "angleZero": "hanging_down",
   "rotationAxis": "Y",
+  "hangPlane": "outboard +Y, clears cart/rail",
+  "clearanceChecks": {
+    "hang": true,
+    "planeClearOfCart": true,
+    "planeClearOfRail": true
+  },
   "defaultPose": {
     "travel": 0.0,
-    "shoulder": 0.4886921905584123,
-    "elbow": -0.7330382858376184
+    "shoulder": 0.3490658503988659,
+    "elbow": -0.6108652381980153
   },
   "elbow0": [
-    79.81016567360143,
-    0.0,
-    -84.10109078601758
+    54.72322293210699,
+    57.0,
+    -90.35081932574536
   ],
   "tip0": [
-    51.98914767963964,
-    0.0,
-    -195.68509930775718
+    26.25312797082971,
+    57.0,
+    -196.60266021754288
   ],
-  "hangExtent": 295.0
+  "hangExtent": 281.0
 }

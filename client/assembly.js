@@ -12,24 +12,28 @@ const IRIS = {
   bladePitch: 0.11,
 };
 
-/** Fitted pendulum (mm, CAD Z-up). Angle 0 = hang down. */
+/** Buildable pendulum (mm, CAD Z-up). Angle 0 = hang down.
+ *  Shoulder is OUTBOARD on +Y so arms never swing through the cart.
+ *  Elbow is the distal clevis of link1; link2 hub seats in that fork.
+ */
 const PEND = {
-  shoulder: { x: 0, y: 0, z: 66 }, // CART_TOP(50)+16
-  cartTop: 50,
+  shoulder: { x: 0, y: 57, z: 60 }, // side-hang plane y=57 (cart +Y face is 35)
+  cartTop: 52,
   cartZ0: 16,
-  cartL: 110,
-  link1L: 170,
-  link2L: 115,
-  shoulderHubW: 14,
-  elbowHubW: 12,
-  cheekT: 7,
-  travelAmp: 70,
-  shoulderAmp: THREE.MathUtils.degToRad(42),
-  elbowAmp: THREE.MathUtils.degToRad(55),
-  shoulderBias: THREE.MathUtils.degToRad(10),
-  elbowBias: THREE.MathUtils.degToRad(-28),
-  // encoder board offset along −Y from joint origin
-  asY: (hubW) => -(hubW / 2 + 7 + 6),
+  cartL: 120,
+  cartW: 70,
+  link1L: 160,
+  link2L: 110,
+  shoulderHubW: 16,
+  elbowHubW: 14,
+  cheekT: 8,
+  travelAmp: 60,
+  shoulderAmp: THREE.MathUtils.degToRad(38),
+  elbowAmp: THREE.MathUtils.degToRad(48),
+  shoulderBias: THREE.MathUtils.degToRad(12),
+  elbowBias: THREE.MathUtils.degToRad(-30),
+  // encoder board on −Y stub from joint origin
+  asY: (hubW, cheekT = 8) => -(hubW / 2 + cheekT + 7),
 };
 
 const root = document.getElementById("cad-root");
@@ -315,9 +319,9 @@ function frameIris() {
 }
 
 function framePendulum() {
-  // Full hang: shoulder ~y66, tip ~ y66-285 ≈ -220
-  camera.position.set(340, 90, 380);
-  controls.target.set(0, -70, 0);
+  // Side-hang: pivot at Three z≈-57, hang down to y≈-220
+  camera.position.set(300, 80, 420);
+  controls.target.set(0, -60, -40);
   controls.update();
 }
 
@@ -370,47 +374,49 @@ async function buildPendulum() {
   cartRoot.add(cart);
 
   const teensy = tag(cadMesh(teensyM), "teensy-4.1");
-  teensy.position.copy(cadToThree(28, 0, PEND.cartTop + 5));
+  teensy.position.copy(cadToThree(0, -8, PEND.cartTop + 5));
   cartRoot.add(teensy);
 
   const amt = tag(cadMesh(amtM), "amt102-v");
-  amt.position.copy(cadToThree(-PEND.cartL / 2 - 4, 20, PEND.cartZ0 + 20));
+  amt.position.copy(cadToThree(-PEND.cartL / 2 - 4, 0, PEND.cartZ0 + 20));
   cartRoot.add(amt);
 
-  // Shoulder pivot group
+  // Shoulder pivot — OUTBOARD on +Y (hang plane clears cart body)
   const shoulder = new THREE.Group();
   tag(shoulder, "shoulder-joint");
 
+  // Fixed hardware at shoulder origin (bearings/shaft/slip ring/magnet)
   const shoulderJoint = tag(cadMesh(shoulderM), "shoulder-joint");
   shoulder.add(shoulderJoint);
 
   const asA = tag(cadMesh(asM.clone()), "as5047p");
-  asA.position.copy(cadToThree(0, PEND.asY(PEND.shoulderHubW), 0));
+  asA.position.copy(cadToThree(0, PEND.asY(PEND.shoulderHubW, PEND.cheekT), 0));
   shoulder.add(asA);
 
+  // Link1 hub seats in cart cheeks; length along local +Y after cadMesh
   const link1 = tag(cadMesh(link1M), "frame");
   shoulder.add(link1);
 
-  // Elbow pivot at distal end of link1 (local +Y after convert = CAD +Z)
+  // Elbow = distal clevis of link1. Link2 hub seats here — one kinematic chain.
   const elbow = new THREE.Group();
   tag(elbow, "elbow-joint");
-  elbow.position.set(0, PEND.link1L, 0);
+  elbow.position.set(0, PEND.link1L, 0); // CAD +Z end of link1 → Three +Y
   shoulder.add(elbow);
 
   const elbowJoint = tag(cadMesh(elbowM), "elbow-joint");
   elbow.add(elbowJoint);
 
   const asB = tag(cadMesh(asM.clone()), "as5047p");
-  asB.position.copy(cadToThree(0, PEND.asY(PEND.elbowHubW), 0));
+  asB.position.copy(cadToThree(0, PEND.asY(PEND.elbowHubW, PEND.cheekT), 0));
   elbow.add(asB);
 
+  // Second arm: proximal hub IS the elbow half — must be child of elbow group
   const link2 = tag(cadMesh(link2M), "frame");
   elbow.add(link2);
 
   cartRoot.add(shoulder);
-  addRoot("frame", cartRoot, new THREE.Vector3(0, 0, 0), new THREE.Vector3(0, 14, 0));
+  addRoot("frame", cartRoot, new THREE.Vector3(0, 0, 0), new THREE.Vector3(0, 10, 0));
 
-  // Register pickable leaves for highlight (still parented under cartRoot)
   state.parts.push(teensy, amt, shoulderJoint, elbowJoint, asA, asB, link1, link2);
 
   state.pend = {
@@ -418,16 +424,20 @@ async function buildPendulum() {
     cartRoot,
     shoulder,
     elbow,
-    cartExplode: new THREE.Vector3(0, 14, 0),
-    shoulderExplode: new THREE.Vector3(-18, 22, 28),
-    elbowExplode: new THREE.Vector3(28, -40, -22),
+    // Explode only separates stacks slightly — never breaks the chain at rest
+    cartExplode: new THREE.Vector3(0, 10, 0),
+    shoulderExplode: new THREE.Vector3(0, 8, -30), // pull outboard (+Three Z = −CAD Y)
+    elbowExplode: new THREE.Vector3(0, 20, 0), // along arm, keeps joint seated look
   };
 
-  state._phase = 0.2;
+  state._phase = 0.15;
   setPendulumPose(state._phase);
   framePendulum();
   highlight("shoulder-joint");
-  if (hint) hint.textContent = "Fitted clevis joints · live swing · click a part";
+  if (hint) {
+    hint.textContent =
+      "Side-hang · link2 seated in link1 clevis · no swing-through cart";
+  }
   if (playBtn) playBtn.textContent = state.playing ? "Pause" : "Play";
 }
 
