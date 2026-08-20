@@ -109,7 +109,7 @@
       border-color: rgba(196, 138, 0, 0.55);
       color: #9a6c00;
     }
-    .iris-only.hidden { display: none; }
+    .iris-only.hidden, .pend-only.hidden { display: none; }
     .section-title {
       font-family: Orbitron, sans-serif; letter-spacing: 0.16em; font-size: 13px;
       text-transform: uppercase; color: var(--gold); margin: 36px 0 14px;
@@ -203,7 +203,8 @@
           </div>
           <span id="cad-hint">Loading CAD…</span>
           <label class="iris-only">Aperture <input id="cad-aperture" type="range" min="0" max="1" step="0.01" value="0.35" /></label>
-          <button class="btn iris-only" id="cad-play" type="button">Pause</button>
+          <label class="pend-only hidden">Swing <input id="cad-swing" type="range" min="0" max="1" step="0.01" value="0.35" /></label>
+          <button class="btn" id="cad-play" type="button">Pause</button>
           <label>Explode <input id="cad-explode" type="range" min="0" max="1" step="0.01" value="0" /></label>
           <button class="btn" id="cad-reset" type="button">Reset view</button>
         </div>
