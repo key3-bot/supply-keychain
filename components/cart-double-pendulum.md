@@ -16,7 +16,14 @@ Underactuated cart with two rotary links. One horizontal cart force must swing b
 | [as5047p](as5047p.md) | joint encoder | 2 | Absolute angle, no homing |
 | [amt102-v](amt102-v.md) | cart encoder | 1 | Incremental cart travel |
 
-Rail, motor, driver, and PSU are mechanical follow-ons after the sensing chain is locked.
+## CAD (2026-08-20)
+
+Real joint stack in `cad/cart-double-pendulum.FCStd` / viewer **Pendulum** mode:
+- Shoulder + elbow: 608 bearings, Ø8 shafts, SRC012 slip rings, AS5047P + magnets
+- Cart: AMT102-V side mount, Teensy on top, harness through hollow links
+- Rebuild: `freecad.cmd cad/run_pendulum.py`
+
+Rail motor, driver, and PSU are still mechanical follow-ons.
 
 ## Crypto
 

@@ -62,6 +62,9 @@ const mats = {
   alu: metal(0x7f8b99),
   alu2: metal(0xa3adb8),
   gold: metal(0xc9a227),
+  steel: metal(0x6e7680, { roughness: 0.28, metalness: 0.85 }),
+  wire: new THREE.MeshStandardMaterial({ color: 0x1a1a1a, roughness: 0.7, metalness: 0.15 }),
+  tip: metal(0xb83a2f, { roughness: 0.35, metalness: 0.55 }),
   pcb: new THREE.MeshStandardMaterial({ color: 0x1f7a3a, roughness: 0.45, metalness: 0.12 }),
   pcb2: new THREE.MeshStandardMaterial({ color: 0x163024, roughness: 0.5, metalness: 0.08 }),
   plastic: new THREE.MeshStandardMaterial({ color: 0x2b2b2b, roughness: 0.4, metalness: 0.15 }),
@@ -187,15 +190,18 @@ function highlight(id) {
   });
   if (!hint) return;
   const labels = {
-    "teensy-4.1": "Teensy 4.1 — vendor STEP",
-    "slip-ring-12-wire": "SRC012-12 slip ring — Ø12 × 19.5 mm",
-    as5047p: "AS5047P-TS_EK_AB — 28 × 22 mm",
-    "amt102-v": "AMT102-V — Ø31 × 28.77 mm",
-    frame: "Rail / links — mechanical follow-on",
+    "teensy-4.1": "Teensy 4.1 — vendor STEP on cart top",
+    "slip-ring-12-wire": "SRC012-12 slip ring — Ø12.4 × 19.5 mm",
+    as5047p: "AS5047P-TS_EK_AB — 28 × 22 mm absolute joint encoder",
+    "amt102-v": "AMT102-V — Ø31 cart encoder on side bracket",
+    frame: "Rail / cart / hollow links / tip mass",
+    "shoulder-joint": "Shoulder — 608 bearings, Ø8 shaft, magnet + collar",
+    "elbow-joint": "Elbow — 608 bearings, Ø8 shaft, magnet + slip ring",
+    wiring: "Harness — Teensy → slip rings → encoders through link tunnels",
     "iris-stator": "Stator cup — 12 pivot pins, wall captures the pack",
     "iris-rotor": "Drive ring — 12 pins in blade slots",
     "iris-cover": "Retaining cover — holds leaves in the cup",
-    "iris-blade": "12 near-coplanar blades — Ø7.2 → Ø33.4 mm",
+    "iris-blade": "12 notched blades — pin-clear through the stroke",
   };
   hint.textContent = labels[id] || (state.mode === "iris" ? "Drag to orbit · iris is dilating" : "Drag to orbit · click a part");
 }
@@ -206,31 +212,45 @@ function frameIris() {
 }
 
 function framePendulum() {
-  camera.position.set(280, 210, 320);
-  controls.target.set(0, 90, 0);
+  // Assembly hangs below the cart; look at mid-hang volume.
+  camera.position.set(260, 120, 300);
+  controls.target.set(20, -40, 0);
 }
 
 async function buildPendulum() {
   clearParts();
+  // FreeCAD exports are already posed in world mm (Z-up). STL Rx(-90°) → Three Y-up.
+  // Teensy STEP mesh is from the older cart height; lift ~6 mm onto the new cart top.
   const files = [
-    ["cad/rail.stl", "frame", mats.rail, new THREE.Vector3(0, 0, 0), new THREE.Vector3(0, -20, 0)],
-    ["cad/cart.stl", "frame", mats.cart, new THREE.Vector3(0, 0, 0), new THREE.Vector3(0, 8, 0)],
-    ["cad/link1.stl", "frame", mats.alu, new THREE.Vector3(0, 0, 0), new THREE.Vector3(0, 70, 0)],
-    ["cad/link2.stl", "frame", mats.alu2, new THREE.Vector3(0, 0, 0), new THREE.Vector3(20, 130, 0)],
-    ["cad/teensy-4.1.stl", "teensy-4.1", mats.pcb, new THREE.Vector3(0, 0, 0), new THREE.Vector3(40, 50, 20)],
-    ["cad/slip-ring-12-wire-a.stl", "slip-ring-12-wire", mats.gold, new THREE.Vector3(0, 0, 0), new THREE.Vector3(-30, 30, -40)],
-    ["cad/slip-ring-12-wire-b.stl", "slip-ring-12-wire", mats.gold, new THREE.Vector3(0, 0, 0), new THREE.Vector3(30, 90, 30)],
-    ["cad/as5047p-a.stl", "as5047p", mats.pcb2, new THREE.Vector3(0, 0, 0), new THREE.Vector3(50, 40, -20)],
-    ["cad/as5047p-b.stl", "as5047p", mats.pcb2, new THREE.Vector3(0, 0, 0), new THREE.Vector3(55, 100, 10)],
-    ["cad/amt102-v.stl", "amt102-v", mats.plastic, new THREE.Vector3(0, 0, 0), new THREE.Vector3(-50, 10, 40)],
+    ["cad/rail.stl", "frame", mats.rail, [0, 0, 0], [0, -18, 0]],
+    ["cad/cart.stl", "frame", mats.cart, [0, 0, 0], [0, 10, 0]],
+    ["cad/link1.stl", "frame", mats.alu, [0, 0, 0], [30, -40, 0]],
+    ["cad/link2.stl", "frame", mats.alu2, [0, 0, 0], [50, -90, 0]],
+    ["cad/tip-mass.stl", "frame", mats.tip, [0, 0, 0], [40, -120, 0]],
+    ["cad/shoulder-joint.stl", "shoulder-joint", mats.steel, [0, 0, 0], [-20, 25, 30]],
+    ["cad/elbow-joint.stl", "elbow-joint", mats.steel, [0, 0, 0], [40, -50, -25]],
+    ["cad/slip-ring-12-wire-a.stl", "slip-ring-12-wire", mats.gold, [0, 0, 0], [-35, 20, 20]],
+    ["cad/slip-ring-12-wire-b.stl", "slip-ring-12-wire", mats.gold, [0, 0, 0], [55, -40, -20]],
+    ["cad/as5047p-a.stl", "as5047p", mats.pcb2, [0, 0, 0], [-40, -25, 15]],
+    ["cad/as5047p-b.stl", "as5047p", mats.pcb2, [0, 0, 0], [60, -55, -30]],
+    ["cad/amt102-v.stl", "amt102-v", mats.plastic, [0, 0, 0], [-70, 15, 25]],
+    ["cad/teensy-4.1.stl", "teensy-4.1", mats.pcb, [0, 6, 0], [45, 35, 15]],
+    ["cad/wiring.stl", "wiring", mats.wire, [0, 0, 0], [25, -20, -40]],
   ];
-  for (const [url, id, mat, home, explode] of files) {
+  for (const [url, id, mat, homeT, explodeT] of files) {
     const mesh = await loadStl(url, mat.clone());
+    // CAD Z-up → Three Y-up. home/explode are already in Three space (x,y,z).
     mesh.rotation.x = -Math.PI / 2;
-    addPart(id, mesh, home, explode);
+    addPart(
+      id,
+      mesh,
+      new THREE.Vector3(homeT[0], homeT[1], homeT[2]),
+      new THREE.Vector3(explodeT[0], explodeT[1], explodeT[2])
+    );
   }
   framePendulum();
-  highlight("teensy-4.1");
+  highlight("shoulder-joint");
+  if (hint) hint.textContent = "Real joint stack · click a part · explode to separate";
 }
 
 async function buildIris() {
@@ -321,9 +341,16 @@ function pick(event) {
   let obj = hits[0].object;
   while (obj && !obj.userData.id) obj = obj.parent;
   const id = obj && obj.userData.id;
-  if (!id || id === "frame") return;
+  if (!id || id === "frame" || id === "wiring") return;
   highlight(id);
-  if (typeof window.selectKey === "function" && state.mode === "pendulum") window.selectKey(id);
+  if (typeof window.selectKey === "function" && state.mode === "pendulum") {
+    // Map joint stacks back to catalog keys when possible.
+    const catalogId =
+      id === "shoulder-joint" || id === "elbow-joint"
+        ? "slip-ring-12-wire"
+        : id;
+    window.selectKey(catalogId);
+  }
 }
 
 function resize() {

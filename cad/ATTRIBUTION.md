@@ -23,5 +23,15 @@
 - Original 12-blade mechanism in `dilating-iris.FCStd`
 - Offset pitch circles (pivot Ø64, drive Ø80) with sliding slots
 - Housing is a cup: floor + wall + retaining cover.
-- Coplanar 12-blade pack at z=4.4 mm with 5.5° slot-axis tilt for cyclic over/under overlap (no Z stack).
-- Aperture ≈ Ø7.2 mm closed to Ø33.4 mm open
+- 12 notched comma blades (neighbor pin keep-outs in the 2D outline)
+- Aperture ≈ Ø6.8 mm closed to Ø28.4 mm open
+
+## Cart-double pendulum (real joint stack)
+- Source: `pendulum_geom.py` + `build_assembly.py` → `cart-double-pendulum.FCStd`
+- Rail 400×22×10, cart 90×58×28 with shoulder well and encoder pad
+- Joints: Ø8 shaft, 608-2Z bearings (ID8 OD22 W7), clamp collar
+- SRC012-12 slip rings at shoulder (in cart well) and elbow (on joint Y)
+- AS5047P boards + Ø6×2.5 magnets at both joints
+- AMT102-V on cart side bracket for cart travel
+- Hollow links (wire tunnels) L1=180 / L2=120, tip mass, harness loom
+- Teensy 4.1: vendor STEP mesh placed on cart top
